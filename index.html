@@ -1,0 +1,390 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Reseller Command Center</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <header class="topbar">
+    <div>
+      <p class="eyebrow">Nancy's Reselling Business</p>
+      <h1>Reseller Command Center</h1>
+    </div>
+    <div class="header-actions">
+      <button class="secondary" id="exportBtn">Export Data</button>
+      <label class="secondary file-label">
+        Import Data
+        <input type="file" id="importFile" accept=".json,.csv" hidden />
+      </label>
+      <button class="primary" id="addItemBtn">+ Add Item</button>
+    </div>
+  </header>
+
+  <nav class="tabs">
+    <button class="tab active" data-view="dashboard">Dashboard</button>
+    <button class="tab" data-view="inventory">Inventory</button>
+    <button class="tab" data-view="sales">Sales</button>
+    <button class="tab" data-view="marketplaces">Marketplaces</button>
+    <button class="tab" data-view="settings">Settings</button>
+  </nav>
+
+  <main>
+    <section id="dashboard" class="view active">
+      <div class="stats-grid">
+        <article class="stat-card">
+          <span>Net Profit</span>
+          <strong id="netProfit">$0.00</strong>
+          <small>All completed sales</small>
+        </article>
+        <article class="stat-card">
+          <span>Gross Sales</span>
+          <strong id="grossSales">$0.00</strong>
+          <small>Before fees and costs</small>
+        </article>
+        <article class="stat-card">
+          <span>Active Inventory</span>
+          <strong id="activeInventory">0</strong>
+          <small>Items not yet sold</small>
+        </article>
+        <article class="stat-card">
+          <span>Inventory Cost</span>
+          <strong id="inventoryCost">$0.00</strong>
+          <small>Cash tied up in inventory</small>
+        </article>
+        <article class="stat-card">
+          <span>Average ROI</span>
+          <strong id="averageRoi">0%</strong>
+          <small>Completed sales</small>
+        </article>
+        <article class="stat-card">
+          <span>Average Days to Sell</span>
+          <strong id="avgDays">0</strong>
+          <small>Purchase to sale</small>
+        </article>
+      </div>
+
+      <div class="dashboard-grid">
+        <article class="panel">
+          <div class="panel-heading">
+            <div>
+              <p class="eyebrow">Performance</p>
+              <h2>Profit by Marketplace</h2>
+            </div>
+          </div>
+          <div id="marketplaceBars" class="bar-list"></div>
+        </article>
+
+        <article class="panel">
+          <div class="panel-heading">
+            <div>
+              <p class="eyebrow">Action Center</p>
+              <h2>Needs Attention</h2>
+            </div>
+          </div>
+          <div id="attentionList" class="attention-list"></div>
+        </article>
+
+        <article class="panel wide">
+          <div class="panel-heading">
+            <div>
+              <p class="eyebrow">Recent Activity</p>
+              <h2>Latest Items</h2>
+            </div>
+            <button class="text-button" data-jump="inventory">View inventory →</button>
+          </div>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Item</th>
+                  <th>Status</th>
+                  <th>Cost</th>
+                  <th>Listed</th>
+                  <th>Sale Price</th>
+                  <th>Profit</th>
+                </tr>
+              </thead>
+              <tbody id="recentItems"></tbody>
+            </table>
+          </div>
+        </article>
+      </div>
+    </section>
+
+    <section id="inventory" class="view">
+      <div class="section-toolbar">
+        <div>
+          <p class="eyebrow">Your Source of Truth</p>
+          <h2>Inventory</h2>
+        </div>
+        <div class="filters">
+          <input type="search" id="inventorySearch" placeholder="Search items, brands, categories..." />
+          <select id="statusFilter">
+            <option value="">All statuses</option>
+            <option>Unlisted</option>
+            <option>Listed</option>
+            <option>Sold</option>
+          </select>
+          <select id="marketplaceFilter">
+            <option value="">All marketplaces</option>
+            <option>eBay</option>
+            <option>Poshmark</option>
+            <option>Depop</option>
+            <option>Etsy</option>
+            <option>Facebook Marketplace</option>
+            <option>Mercari</option>
+            <option>Other</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="panel">
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Item</th>
+                <th>Category</th>
+                <th>Source</th>
+                <th>Storage</th>
+                <th>Cost</th>
+                <th>Status</th>
+                <th>Marketplaces</th>
+                <th>Days Held</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody id="inventoryTable"></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <section id="sales" class="view">
+      <div class="section-toolbar">
+        <div>
+          <p class="eyebrow">Completed Transactions</p>
+          <h2>Sales & Profit</h2>
+        </div>
+      </div>
+      <div class="panel">
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Item</th>
+                <th>Marketplace</th>
+                <th>Sold</th>
+                <th>Sale Price</th>
+                <th>Shipping Collected</th>
+                <th>Fees</th>
+                <th>Label/Shipping</th>
+                <th>Item Cost</th>
+                <th>Net Profit</th>
+                <th>ROI</th>
+              </tr>
+            </thead>
+            <tbody id="salesTable"></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <section id="marketplaces" class="view">
+      <div class="section-toolbar">
+        <div>
+          <p class="eyebrow">Connections</p>
+          <h2>Marketplace Hub</h2>
+        </div>
+      </div>
+      <div id="marketplaceCards" class="marketplace-grid"></div>
+    </section>
+
+    <section id="settings" class="view">
+      <div class="section-toolbar">
+        <div>
+          <p class="eyebrow">Configuration</p>
+          <h2>Settings & Data</h2>
+        </div>
+      </div>
+
+      <div class="settings-grid">
+        <article class="panel">
+          <h3>Business Preferences</h3>
+          <label>
+            Default marketplace
+            <select id="defaultMarketplace">
+              <option>eBay</option>
+              <option>Poshmark</option>
+              <option>Depop</option>
+              <option>Etsy</option>
+              <option>Facebook Marketplace</option>
+              <option>Mercari</option>
+              <option>Other</option>
+            </select>
+          </label>
+          <label>
+            Stale listing alert after
+            <div class="input-suffix">
+              <input type="number" id="staleDays" min="1" value="90" />
+              <span>days</span>
+            </div>
+          </label>
+          <button class="primary" id="saveSettingsBtn">Save Settings</button>
+        </article>
+
+        <article class="panel">
+          <h3>Backup</h3>
+          <p>Your records are currently stored in this browser. Export a backup regularly.</p>
+          <div class="stack">
+            <button class="secondary" id="exportBackupBtn">Download JSON Backup</button>
+            <button class="danger" id="clearDataBtn">Clear All Data</button>
+          </div>
+        </article>
+
+        <article class="panel wide">
+          <h3>Automation Roadmap</h3>
+          <div class="roadmap">
+            <div><strong>Phase 1</strong><span>Local inventory, sales, profit, exports</span></div>
+            <div><strong>Phase 2</strong><span>Secure database and multi-device access</span></div>
+            <div><strong>Phase 3</strong><span>eBay OAuth, orders, fees and payouts</span></div>
+            <div><strong>Phase 4</strong><span>Email-based sale detection for Poshmark, Depop and others</span></div>
+          </div>
+        </article>
+      </div>
+    </section>
+  </main>
+
+  <dialog id="itemDialog">
+    <form method="dialog" id="itemForm">
+      <div class="dialog-heading">
+        <div>
+          <p class="eyebrow">Inventory Record</p>
+          <h2 id="dialogTitle">Add Item</h2>
+        </div>
+        <button type="button" class="icon-button" id="closeDialogBtn">×</button>
+      </div>
+
+      <input type="hidden" id="itemId" />
+
+      <div class="form-grid">
+        <label class="span-2">
+          Item title
+          <input id="title" required placeholder="Example: Three aqua Fiesta coffee mugs" />
+        </label>
+
+        <label>
+          Brand
+          <input id="brand" placeholder="Fiesta" />
+        </label>
+
+        <label>
+          Category
+          <input id="category" placeholder="Drinkware" />
+        </label>
+
+        <label>
+          Purchase cost
+          <input id="purchaseCost" type="number" step="0.01" min="0" required />
+        </label>
+
+        <label>
+          Purchase date
+          <input id="purchaseDate" type="date" required />
+        </label>
+
+        <label>
+          Source
+          <input id="source" placeholder="Goodwill, estate sale..." />
+        </label>
+
+        <label>
+          Storage location
+          <input id="storage" placeholder="Shelf B-3" />
+        </label>
+
+        <label>
+          Status
+          <select id="status">
+            <option>Unlisted</option>
+            <option>Listed</option>
+            <option>Sold</option>
+          </select>
+        </label>
+
+        <label>
+          List price
+          <input id="listPrice" type="number" step="0.01" min="0" />
+        </label>
+
+        <fieldset class="span-2">
+          <legend>Listed marketplaces</legend>
+          <div class="checkbox-grid" id="marketplaceChecks"></div>
+        </fieldset>
+
+        <label>
+          Sale marketplace
+          <select id="saleMarketplace">
+            <option value="">Not sold</option>
+            <option>eBay</option>
+            <option>Poshmark</option>
+            <option>Depop</option>
+            <option>Etsy</option>
+            <option>Facebook Marketplace</option>
+            <option>Mercari</option>
+            <option>Other</option>
+          </select>
+        </label>
+
+        <label>
+          Sale date
+          <input id="saleDate" type="date" />
+        </label>
+
+        <label>
+          Sale price
+          <input id="salePrice" type="number" step="0.01" min="0" />
+        </label>
+
+        <label>
+          Shipping collected
+          <input id="shippingCollected" type="number" step="0.01" min="0" />
+        </label>
+
+        <label>
+          Marketplace fees
+          <input id="fees" type="number" step="0.01" min="0" />
+        </label>
+
+        <label>
+          Shipping/label cost
+          <input id="shippingCost" type="number" step="0.01" min="0" />
+        </label>
+
+        <label>
+          Other expenses
+          <input id="otherExpenses" type="number" step="0.01" min="0" />
+        </label>
+
+        <label class="span-2">
+          Notes
+          <textarea id="notes" rows="3" placeholder="Condition, flaws, measurements, buyer notes..."></textarea>
+        </label>
+      </div>
+
+      <div class="dialog-actions">
+        <button type="button" class="danger ghost" id="deleteItemBtn">Delete</button>
+        <div>
+          <button type="button" class="secondary" id="cancelBtn">Cancel</button>
+          <button class="primary" value="default">Save Item</button>
+        </div>
+      </div>
+    </form>
+  </dialog>
+
+  <div id="toast" class="toast"></div>
+  <script src="app.js"></script>
+</body>
+</html>
