@@ -1,5 +1,14 @@
 const STORAGE_KEY = "resellerCommandCenter.items.v1";
 const SETTINGS_KEY = "resellerCommandCenter.settings.v1";
+const OPPORTUNITIES_KEY = "resellerCommandCenter.opportunities.v1";
+const SCOUT_DEFAULTS = {
+  zipCode: "34221",
+  radiusMiles: 50,
+  minimumRoi: 100,
+  feePercent: 13.6,
+  orderFee: 0.40,
+  suppliesCost: 1.50
+};
 
 const marketplaces = [
   "eBay",
@@ -58,6 +67,7 @@ const sampleItems = [
 
 let items = loadItems();
 let settings = loadSettings();
+let opportunities = loadOpportunities();
 
 const $ = (id) => document.getElementById(id);
 const currency = (value) => new Intl.NumberFormat("en-US", {
@@ -88,6 +98,17 @@ function saveItems() {
 
 function saveSettings() {
   localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings));
+}
+
+function loadOpportunities() {
+  const stored = localStorage.getItem(OPPORTUNITIES_KEY);
+  if (!stored) return [];
+  try { return JSON.parse(stored); } catch { return []; }
+}
+
+function saveOpportunities() {
+  localStorage.setItem(OPPORTUNITIES_KEY, JSON.stringify(opportunities));
+  renderScout();
 }
 
 function profit(item) {
@@ -297,6 +318,181 @@ function renderMarketplaceCards() {
   });
 }
 
+function opportunityNumbers(opportunity) {
+  const askingPrice = Number(opportunity.askingPrice || 0);
+  const salePrice = Number(opportunity.estimatedSalePrice || 0);
+  const shippingCharged = Number(opportunity.shippingCharged || 0);
+  const shippingCost = Number(opportunity.shippingCost || 0);
+  const suppliesCost = Number(opportunity.suppliesCost ?? SCOUT_DEFAULTS.suppliesCost);
+  const repairCost = Number(opportunity.repairCost || 0);
+  const travelCost = Number(opportunity.travelCost || 0);
+  const feePercent = Number(opportunity.feePercent ?? SCOUT_DEFAULTS.feePercent);
+  const fees = salePrice > 0
+    ? ((salePrice + shippingCharged) * feePercent / 100) + SCOUT_DEFAULTS.orderFee
+    : 0;
+  const netProfit = salePrice + shippingCharged - askingPrice - fees - shippingCost - suppliesCost - repairCost - travelCost;
+  const roiPercent = askingPrice > 0 ? (netProfit / askingPrice) * 100 : 0;
+  return { askingPrice, salePrice, fees, netProfit, roiPercent };
+}
+
+function opportunityRecommendation(opportunity) {
+  if (opportunity.status === "Pass") return "Pass";
+  const numbers = opportunityNumbers(opportunity);
+  if (!numbers.salePrice || !opportunity.confidence) return "Needs Research";
+  return numbers.roiPercent >= SCOUT_DEFAULTS.minimumRoi ? "Meets Target" : "Below Target";
+}
+
+function categoryFromText(text = "") {
+  const value = text.toLowerCase();
+  if (/lamp|vase|glass|crystal|pyrex|fiesta|plate|bowl|mug|dish|mirror|frame|decor|candle|pottery|ceramic|china/.test(value)) return "Glassware & Home Décor";
+  if (/radio|stereo|speaker|camera|console|xbox|playstation|nintendo|toaster|mixer|blender|coffee maker|vacuum|electronics|appliance/.test(value)) return "Electronics & Small Appliances";
+  if (/vintage|antique|collectible|mid.century|signed|figurine|record|rare|retro/.test(value)) return "Vintage & Collectibles";
+  if (/chair|table|desk|dresser|cabinet|sofa|couch|bookcase|nightstand|furniture/.test(value)) return "Furniture";
+  return "Other Shippable";
+}
+
+function soldSearchUrl(title) {
+  const query = String(title || "").replace(/\b(new listing|just listed|marketplace)\b/gi, "").trim();
+  return `https://www.ebay.com/sch/i.html?_nkw=${encodeURIComponent(query)}&LH_Complete=1&LH_Sold=1`;
+}
+
+function importScoutListings(listings = []) {
+  if (!Array.isArray(listings)) return 0;
+  let added = 0;
+  listings.forEach(listing => {
+    const url = String(listing.url || "").split("?")[0];
+    if (!url || opportunities.some(item => item.url === url)) return;
+    const title = String(listing.title || "Facebook Marketplace listing").trim();
+    const researched = Object.hasOwn(listing, "estimatedSalePrice") || Object.hasOwn(listing, "confidence");
+    opportunities.unshift({
+      id: researched && listing.id ? listing.id : crypto.randomUUID(),
+      title,
+      url,
+      imageUrl: listing.imageUrl || "",
+      location: listing.location || "",
+      askingPrice: Number(listing.askingPrice || 0),
+      category: researched && listing.category ? listing.category : categoryFromText(title),
+      scannedAt: listing.scannedAt || new Date().toISOString(),
+      estimatedSalePrice: researched ? Number(listing.estimatedSalePrice || 0) : 0,
+      shippingCharged: researched ? Number(listing.shippingCharged || 0) : 0,
+      shippingCost: researched ? Number(listing.shippingCost || 0) : 0,
+      suppliesCost: researched ? Number(listing.suppliesCost ?? SCOUT_DEFAULTS.suppliesCost) : SCOUT_DEFAULTS.suppliesCost,
+      repairCost: researched ? Number(listing.repairCost || 0) : 0,
+      travelCost: researched ? Number(listing.travelCost || 0) : 0,
+      feePercent: researched ? Number(listing.feePercent ?? SCOUT_DEFAULTS.feePercent) : SCOUT_DEFAULTS.feePercent,
+      confidence: researched ? listing.confidence || "" : "",
+      status: researched ? listing.status || "Watching" : "Watching",
+      notes: researched ? listing.notes || "" : ""
+    });
+    added++;
+  });
+  if (added) saveOpportunities();
+  return added;
+}
+
+function renderScout() {
+  const search = $("scoutSearch")?.value.toLowerCase().trim() || "";
+  const recommendationFilter = $("scoutRecommendationFilter")?.value || "";
+  const categoryFilter = $("scoutCategoryFilter")?.value || "";
+  const filtered = opportunities.filter(opportunity => {
+    const recommendation = opportunityRecommendation(opportunity);
+    const haystack = [opportunity.title, opportunity.location, opportunity.category, opportunity.notes].join(" ").toLowerCase();
+    return (!search || haystack.includes(search))
+      && (!recommendationFilter || recommendation === recommendationFilter)
+      && (!categoryFilter || opportunity.category === categoryFilter);
+  });
+
+  $("scoutUnreviewed").textContent = opportunities.filter(item => opportunityRecommendation(item) === "Needs Research").length;
+  $("scoutStrong").textContent = opportunities.filter(item => opportunityRecommendation(item) === "Meets Target").length;
+
+  $("scoutTable").innerHTML = filtered.length ? filtered.map(opportunity => {
+    const numbers = opportunityNumbers(opportunity);
+    const recommendation = opportunityRecommendation(opportunity);
+    const badgeClass = recommendation.toLowerCase().replaceAll(" ", "-");
+    return `
+      <tr>
+        <td>
+          <div class="scout-listing-cell">
+            ${opportunity.imageUrl ? `<img src="${escapeHtml(opportunity.imageUrl)}" alt="" loading="lazy" referrerpolicy="no-referrer" />` : ""}
+            <div>
+              <a class="item-title" href="${escapeHtml(opportunity.url)}" target="_blank" rel="noopener">${escapeHtml(opportunity.title)}</a>
+              <div class="item-meta">${escapeHtml(opportunity.location || opportunity.category)}</div>
+            </div>
+          </div>
+        </td>
+        <td>${currency(numbers.askingPrice)}</td>
+        <td>${numbers.salePrice ? currency(numbers.salePrice) : "—"}</td>
+        <td>${numbers.salePrice ? currency(numbers.netProfit) : "—"}</td>
+        <td>${numbers.salePrice ? `${Math.round(numbers.roiPercent)}%` : "—"}</td>
+        <td><span class="badge scout-${badgeClass}">${recommendation}</span></td>
+        <td><button class="text-button research-opportunity" data-id="${opportunity.id}">Research</button></td>
+      </tr>`;
+  }).join("") : `<tr><td colspan="7" class="empty">No sourcing opportunities yet. Scan Facebook Marketplace with the companion extension or import a scout file.</td></tr>`;
+
+  document.querySelectorAll(".research-opportunity").forEach(button => {
+    button.addEventListener("click", () => openOpportunityDialog(button.dataset.id));
+  });
+}
+
+function openOpportunityDialog(id) {
+  const opportunity = opportunities.find(item => item.id === id);
+  if (!opportunity) return;
+  const numbers = opportunityNumbers(opportunity);
+  $("opportunityId").value = opportunity.id;
+  $("opportunityTitle").value = opportunity.title;
+  $("opportunityAskingPrice").value = opportunity.askingPrice;
+  $("opportunityCategory").value = opportunity.category || categoryFromText(opportunity.title);
+  $("opportunitySalePrice").value = opportunity.estimatedSalePrice || "";
+  $("opportunityShippingCharged").value = opportunity.shippingCharged || 0;
+  $("opportunityShippingCost").value = opportunity.shippingCost || 0;
+  $("opportunitySuppliesCost").value = opportunity.suppliesCost ?? SCOUT_DEFAULTS.suppliesCost;
+  $("opportunityRepairCost").value = opportunity.repairCost || 0;
+  $("opportunityTravelCost").value = opportunity.travelCost || 0;
+  $("opportunityFeePercent").value = opportunity.feePercent ?? SCOUT_DEFAULTS.feePercent;
+  $("opportunityConfidence").value = opportunity.confidence || "";
+  $("opportunityStatus").value = opportunity.status || "Watching";
+  $("opportunityNotes").value = opportunity.notes || "";
+  $("opportunitySource").innerHTML = `
+    ${opportunity.imageUrl ? `<img src="${escapeHtml(opportunity.imageUrl)}" alt="" referrerpolicy="no-referrer" />` : ""}
+    <div><strong>${escapeHtml(opportunity.location || "Facebook Marketplace")}</strong><br><a href="${escapeHtml(opportunity.url)}" target="_blank" rel="noopener">Open original listing</a></div>`;
+  $("ebayResearchBtn").href = soldSearchUrl(opportunity.title);
+  updateOpportunityCalculation(numbers);
+  $("opportunityDialog").showModal();
+}
+
+function readOpportunityForm() {
+  const existing = opportunities.find(item => item.id === $("opportunityId").value) || {};
+  return {
+    ...existing,
+    title: $("opportunityTitle").value.trim(),
+    askingPrice: Number($("opportunityAskingPrice").value || 0),
+    category: $("opportunityCategory").value,
+    estimatedSalePrice: Number($("opportunitySalePrice").value || 0),
+    shippingCharged: Number($("opportunityShippingCharged").value || 0),
+    shippingCost: Number($("opportunityShippingCost").value || 0),
+    suppliesCost: Number($("opportunitySuppliesCost").value || 0),
+    repairCost: Number($("opportunityRepairCost").value || 0),
+    travelCost: Number($("opportunityTravelCost").value || 0),
+    feePercent: Number($("opportunityFeePercent").value || 0),
+    confidence: $("opportunityConfidence").value,
+    status: $("opportunityStatus").value,
+    notes: $("opportunityNotes").value.trim()
+  };
+}
+
+function updateOpportunityCalculation(opportunity = readOpportunityForm()) {
+  const numbers = opportunityNumbers(opportunity);
+  const recommendation = opportunityRecommendation(opportunity);
+  $("opportunityCalculation").innerHTML = numbers.salePrice
+    ? `<span>Estimated fees <strong>${currency(numbers.fees)}</strong></span><span>Net profit <strong>${currency(numbers.netProfit)}</strong></span><span>Net ROI <strong>${Math.round(numbers.roiPercent)}%</strong></span><span class="badge scout-${recommendation.toLowerCase().replaceAll(" ", "-")}">${recommendation}</span>`
+    : `<span>Enter an expected eBay sale price and research confidence to calculate the opportunity.</span>`;
+}
+
+function requestScoutData() {
+  window.postMessage({ source: "reseller-command-center", type: "REQUEST_SCOUT_DATA" }, window.location.origin);
+  setTimeout(() => toast("If the extension has scanned listings, they will appear here."), 250);
+}
+
 function renderSettings() {
   $("defaultMarketplace").value = settings.defaultMarketplace;
   $("staleDays").value = settings.staleDays;
@@ -306,6 +502,7 @@ function renderAll() {
   renderDashboard();
   renderInventory();
   renderSales();
+  renderScout();
   renderMarketplaceCards();
   renderSettings();
 }
@@ -313,6 +510,7 @@ function renderAll() {
 function showView(viewId) {
   document.querySelectorAll(".view").forEach(v => v.classList.toggle("active", v.id === viewId));
   document.querySelectorAll(".tab").forEach(t => t.classList.toggle("active", t.dataset.view === viewId));
+  if (history.replaceState) history.replaceState(null, "", `#${viewId}`);
 }
 
 function openItemDialog(id = "") {
@@ -386,7 +584,8 @@ function exportJson() {
   const payload = {
     exportedAt: new Date().toISOString(),
     settings,
-    items
+    items,
+    opportunities
   };
   downloadBlob(JSON.stringify(payload, null, 2), "reseller-command-center-backup.json", "application/json");
 }
@@ -421,7 +620,9 @@ async function importFile(file) {
     const data = JSON.parse(text);
     items = Array.isArray(data) ? data : data.items || [];
     if (data.settings) settings = { ...settings, ...data.settings };
+    if (Array.isArray(data.opportunities)) opportunities = data.opportunities;
     saveSettings();
+    localStorage.setItem(OPPORTUNITIES_KEY, JSON.stringify(opportunities));
     saveItems();
     toast("Backup imported");
     return;
@@ -497,6 +698,69 @@ $("inventorySearch").addEventListener("input", renderInventory);
 $("statusFilter").addEventListener("change", renderInventory);
 $("marketplaceFilter").addEventListener("change", renderInventory);
 
+$("scoutSearch").addEventListener("input", renderScout);
+$("scoutRecommendationFilter").addEventListener("change", renderScout);
+$("scoutCategoryFilter").addEventListener("change", renderScout);
+$("requestScoutBtn").addEventListener("click", requestScoutData);
+$("dismissScoutGuide").addEventListener("click", () => $("scoutGuide").remove());
+$("exportScoutBtn").addEventListener("click", () => {
+  downloadBlob(JSON.stringify({ exportedAt: new Date().toISOString(), listings: opportunities }, null, 2), "reseller-sourcing-opportunities.json", "application/json");
+});
+$("scoutImportFile").addEventListener("change", async event => {
+  const file = event.target.files[0];
+  if (!file) return;
+  try {
+    const data = JSON.parse(await file.text());
+    const listings = Array.isArray(data) ? data : data.listings || data.opportunities || [];
+    const added = importScoutListings(listings);
+    toast(added ? `${added} new listing${added === 1 ? "" : "s"} imported` : "No new listings found");
+  } catch (error) {
+    alert(`Scout import failed: ${error.message}`);
+  }
+  event.target.value = "";
+});
+
+$("clearScoutBtn").addEventListener("click", () => {
+  if (!confirm("Clear all sourcing opportunities from this browser? Your inventory and sales will not be affected.")) return;
+  opportunities = [];
+  saveOpportunities();
+  toast("Sourcing opportunities cleared");
+});
+
+$("closeOpportunityDialogBtn").addEventListener("click", () => $("opportunityDialog").close());
+$("cancelOpportunityBtn").addEventListener("click", () => $("opportunityDialog").close());
+$("opportunityForm").addEventListener("input", () => {
+  updateOpportunityCalculation();
+  $("ebayResearchBtn").href = soldSearchUrl($("opportunityTitle").value);
+});
+$("opportunityForm").addEventListener("submit", event => {
+  event.preventDefault();
+  const record = readOpportunityForm();
+  const index = opportunities.findIndex(item => item.id === record.id);
+  if (index >= 0) opportunities[index] = record;
+  saveOpportunities();
+  $("opportunityDialog").close();
+  toast("Evaluation saved");
+});
+$("deleteOpportunityBtn").addEventListener("click", () => {
+  const id = $("opportunityId").value;
+  if (!id || !confirm("Delete this sourcing opportunity?")) return;
+  opportunities = opportunities.filter(item => item.id !== id);
+  saveOpportunities();
+  $("opportunityDialog").close();
+  toast("Opportunity deleted");
+});
+
+window.addEventListener("message", event => {
+  if (event.source !== window || event.data?.source !== "marketplace-scout" || event.data?.type !== "SCOUT_DATA") return;
+  const added = importScoutListings(event.data.listings || []);
+  if (added) {
+    showView("sourcing");
+    toast(`${added} new Marketplace listing${added === 1 ? "" : "s"} imported`);
+  }
+  window.postMessage({ source: "reseller-command-center", type: "SCOUT_DATA_IMPORTED" }, window.location.origin);
+});
+
 $("saveSettingsBtn").addEventListener("click", () => {
   settings.defaultMarketplace = $("defaultMarketplace").value;
   settings.staleDays = Number($("staleDays").value || 90);
@@ -525,3 +789,6 @@ $("clearDataBtn").addEventListener("click", () => {
 
 renderMarketplaceChecks();
 renderAll();
+const initialView = location.hash.slice(1);
+if (document.getElementById(initialView)?.classList.contains("view")) showView(initialView);
+if (initialView === "sourcing") setTimeout(requestScoutData, 300);
