@@ -1,4 +1,4 @@
-const STORAGE_KEY = "resellerCommandCenter.items.v1";
+// Supabase authentication protects the cloud-backed version of the app.\n// Inventory still remains in localStorage during this integration phase.\nasync function initializeAuthentication() {\n  const { data: { session } } = await supabaseClient.auth.getSession();\n  setAuthenticatedState(Boolean(session));\n\n  supabaseClient.auth.onAuthStateChange((_event, nextSession) => {\n    setAuthenticatedState(Boolean(nextSession));\n  });\n}\n\nfunction setAuthenticatedState(isAuthenticated) {\n  const gate = document.getElementById("authGate");\n  const shell = document.getElementById("appShell");\n  if (gate) gate.hidden = isAuthenticated;\n  if (shell) shell.hidden = !isAuthenticated;\n}\n\nconst STORAGE_KEY = "resellerCommandCenter.items.v1";
 const SETTINGS_KEY = "resellerCommandCenter.settings.v1";
 const OPPORTUNITIES_KEY = "resellerCommandCenter.opportunities.v1";
 const SCOUT_DEFAULTS = {
