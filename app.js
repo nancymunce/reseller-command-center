@@ -20,51 +20,8 @@ const marketplaces = [
   "Other"
 ];
 
-const sampleItems = [
-  {
-    id: crypto.randomUUID(),
-    title: "Three aqua Fiesta coffee mugs",
-    brand: "Fiesta",
-    category: "Drinkware",
-    purchaseCost: 3,
-    purchaseDate: "2026-07-20",
-    source: "Thrift store",
-    storage: "Sold",
-    status: "Sold",
-    listPrice: 31.40,
-    listedMarketplaces: ["eBay"],
-    saleMarketplace: "eBay",
-    saleDate: "2026-07-28",
-    salePrice: 31.40,
-    shippingCollected: 5.99,
-    fees: 5.15,
-    shippingCost: 5.99,
-    otherExpenses: 0,
-    notes: "First eBay sale."
-  },
-  {
-    id: crypto.randomUUID(),
-    title: "Anchor Hocking cake plate",
-    brand: "Anchor Hocking",
-    category: "Serveware",
-    purchaseCost: 4,
-    purchaseDate: "2026-07-05",
-    source: "Thrift store",
-    storage: "Shelf A-2",
-    status: "Listed",
-    listPrice: 34.99,
-    listedMarketplaces: ["eBay", "Facebook Marketplace"],
-    saleMarketplace: "",
-    saleDate: "",
-    salePrice: 0,
-    shippingCollected: 0,
-    fees: 0,
-    shippingCost: 0,
-    otherExpenses: 0,
-    notes: "Base has Anchor Hocking logo."
-  }
-];
-
+// Inventory is intentionally not seeded with demo records.
+// Existing browser data remains untouched; a browser with no saved inventory starts empty.
 let items = loadItems();
 let settings = loadSettings();
 let opportunities = loadOpportunities();
@@ -80,8 +37,8 @@ function loadItems() {
   if (stored) {
     try { return JSON.parse(stored); } catch {}
   }
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(sampleItems));
-  return sampleItems;
+  return [];
+
 }
 
 function loadSettings() {
