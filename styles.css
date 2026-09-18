@@ -413,3 +413,4 @@ legend { font-weight: 800; padding: 0 6px; }
   .scout-summary { grid-template-columns: 1fr; }
   .scout-guide { align-items: flex-start; }
 }
+\n\n/* Authentication gate for the Supabase-backed Command Center. */\n.auth-gate { min-height: 100vh; display: grid; place-items: center; padding: 24px; background: var(--bg); }\n.auth-card { width: min(430px, 100%); display: grid; gap: 16px; padding: 30px; background: var(--panel); border: 1px solid var(--line); border-radius: 18px; box-shadow: var(--shadow); }\n.auth-card h1 { color: var(--ink); }\n.auth-card label { display: grid; gap: 7px; font-weight: 700; }\n.auth-copy, .auth-message { color: var(--muted); margin-bottom: 0; }\n.auth-message.error { color: var(--danger); }\n
