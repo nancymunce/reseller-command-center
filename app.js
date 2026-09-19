@@ -115,7 +115,6 @@ async function testSupabaseInventoryConnection() {
   return data;
 }
 
-const STORAGE_KEY = "resellerCommandCenter.items.v1";
 const SETTINGS_KEY = "resellerCommandCenter.settings.v1";
 const OPPORTUNITIES_KEY = "resellerCommandCenter.opportunities.v1";
 const SCOUT_DEFAULTS = {
@@ -137,9 +136,9 @@ const marketplaces = [
   "Other"
 ];
 
-// Inventory is intentionally not seeded with demo records.
-// Existing browser data remains untouched; a browser with no saved inventory starts empty.
-let items = loadItems();
+// Inventory is loaded from Supabase after authentication.
+// Legacy browser inventory is deliberately left untouched as a rollback backup.
+let items = [];
 let settings = loadSettings();
 let opportunities = loadOpportunities();
 
@@ -148,15 +147,6 @@ const currency = (value) => new Intl.NumberFormat("en-US", {
   style: "currency",
   currency: "USD"
 }).format(Number(value || 0));
-
-function loadItems() {
-  const stored = localStorage.getItem(STORAGE_KEY);
-  if (stored) {
-    try { return JSON.parse(stored); } catch {}
-  }
-  return [];
-
-}
 
 function loadSettings() {
   const defaults = { defaultMarketplace: "eBay", staleDays: 90 };
