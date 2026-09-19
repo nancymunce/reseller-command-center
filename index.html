@@ -303,6 +303,27 @@
           <h2>Marketplace Hub</h2>
         </div>
       </div>
+      <article class="panel ebay-integration-panel">
+        <div class="panel-heading">
+          <div>
+            <p class="eyebrow">Phase 2 Integration</p>
+            <h3>eBay Connection</h3>
+          </div>
+          <span id="ebayConnectionPill" class="connection-pill">Developer approval pending</span>
+        </div>
+        <p id="ebayConnectionText">The Command Center is ready for the eBay connection layer. Your eBay Developer Program account must be approved before OAuth can be configured.</p>
+        <div class="integration-steps" aria-label="eBay integration progress">
+          <div class="integration-step complete"><strong>1</strong><span>Cloud inventory ready</span></div>
+          <div class="integration-step complete"><strong>2</strong><span>Marketplace listing database ready</span></div>
+          <div class="integration-step current"><strong>3</strong><span>eBay Developer approval</span></div>
+          <div class="integration-step"><strong>4</strong><span>Authorize seller account</span></div>
+          <div class="integration-step"><strong>5</strong><span>Import & sync listings</span></div>
+        </div>
+        <div class="integration-actions">
+          <button class="secondary" id="ebayConnectBtn" type="button" disabled>Connect eBay</button>
+          <span class="item-meta">No eBay credentials are stored in this website or GitHub.</span>
+        </div>
+      </article>
       <div id="marketplaceCards" class="marketplace-grid"></div>
     </section>
 
