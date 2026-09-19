@@ -523,6 +523,74 @@ async function markEbayListingNoMatch(listingId) {
   renderEbayListingReview();
 }
 
+async function createInventoryFromEbayListing(listingId) {
+  const listing = marketplaceListings.find(row => row.id === listingId && row.marketplace === "eBay");
+  if (!listing) throw new Error("eBay listing not found.");
+  if (listing.inventory_item_id) throw new Error("This eBay listing is already linked to inventory.");
+
+  const raw = listing.raw_data || {};
+  const created = {
+    id: crypto.randomUUID(),
+    title: listing.title || "Imported eBay item",
+    brand: raw.brand || "",
+    category: raw.categoryName || "",
+    purchaseCost: 0,
+    purchaseDate: new Date().toISOString().slice(0, 10),
+    source: "Imported from eBay",
+    storage: "",
+    status: "Listed",
+    listPrice: Number(listing.price || 0),
+    listedMarketplaces: ["eBay"],
+    saleMarketplace: "",
+    saleDate: "",
+    salePrice: 0,
+    shippingCollected: 0,
+    fees: 0,
+    shippingCost: 0,
+    otherExpenses: 0,
+    listingTitle: listing.title || "",
+    listingDescription: raw.description || "",
+    conditionLabel: raw.conditionDisplayName || raw.condition || "",
+    conditionNotes: raw.conditionDescription || "",
+    measurements: "",
+    weightOz: "",
+    packageLengthIn: "",
+    packageWidthIn: "",
+    packageHeightIn: "",
+    imageUrls: listing.image_urls || [],
+    targetPrice: listing.price ?? "",
+    minimumPrice: "",
+    masterSku: listing.external_sku || "",
+    listingTags: [],
+    notes: `Created from eBay listing ${listing.external_listing_id || ""}. Add purchase cost, purchase date, storage location and any missing listing details.`
+  };
+
+  const saved = await saveCloudItem(created);
+  const { error } = await supabaseClient
+    .from("marketplace_listings")
+    .update({
+      inventory_item_id: saved.id,
+      suggested_inventory_item_id: saved.id,
+      match_status: "confirmed",
+      match_score: 100,
+      match_reason: "Master inventory item created from eBay listing",
+      match_reviewed_at: new Date().toISOString()
+    })
+    .eq("id", listing.id)
+    .eq("marketplace", "eBay");
+
+  if (error) {
+    // Avoid leaving a duplicate master item if linking the source listing fails.
+    await deleteCloudItem(saved.id);
+    throw error;
+  }
+
+  items.unshift(saved);
+  await loadMarketplaceListings();
+  renderAll();
+  return saved;
+}
+
 function renderEbayListingReview() {
   const ebay = marketplaceListings.filter(listing => listing.marketplace === "eBay");
   const linked = ebay.filter(listing => listing.inventory_item_id);
@@ -553,6 +621,7 @@ function renderEbayListingReview() {
       ? '<span class="match-confirmed">Confirmed</span>'
       : `<div class="match-actions">
           ${suggestion ? `<button class="secondary confirm-ebay-match" data-listing="${listing.id}" data-inventory="${suggestion.item.id}" type="button">Confirm</button>` : ""}
+          <button class="secondary create-from-ebay" data-listing="${listing.id}" type="button">Create Master Item</button>
           <button class="text-button no-ebay-match" data-listing="${listing.id}" type="button">No match</button>
         </div>`;
 
@@ -576,6 +645,21 @@ function renderEbayListingReview() {
       } catch (error) {
         console.error(error);
         toast("Could not save the match.");
+      }
+    });
+  });
+
+  document.querySelectorAll(".create-from-ebay").forEach(button => {
+    button.addEventListener("click", async () => {
+      button.disabled = true;
+      try {
+        const saved = await createInventoryFromEbayListing(button.dataset.listing);
+        toast("Master inventory item created from eBay.");
+        openItemDialog(saved.id);
+      } catch (error) {
+        console.error(error);
+        toast("Could not create the master item.");
+        button.disabled = false;
       }
     });
   });
