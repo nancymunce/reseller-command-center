@@ -55,6 +55,7 @@ async function loadCloudInventory() {
   }
   items = (data || []).map(databaseToItem);
   await loadMarketplaceListings();
+  await loadMarketplaceSyncActions();
   renderAll();
   await verifySupabaseAccess();
 }
@@ -70,6 +71,76 @@ async function loadMarketplaceListings() {
     return;
   }
   marketplaceListings = data || [];
+}
+
+async function loadMarketplaceSyncActions() {
+  const { data, error } = await supabaseClient
+    .from("marketplace_sync_actions")
+    .select("*")
+    .order("created_at", { ascending: false });
+  if (error) {
+    console.warn("Marketplace sync actions could not be loaded:", error);
+    marketplaceSyncActions = [];
+    return;
+  }
+  marketplaceSyncActions = data || [];
+}
+
+async function queueSaleProtectionActions(item) {
+  if (!item || item.status !== "Sold") return;
+  const soldMarketplace = item.saleMarketplace || "";
+  const otherListings = marketplaceListings.filter(listing =>
+    listing.inventory_item_id === item.id &&
+    listing.status === "active" &&
+    listing.marketplace !== soldMarketplace
+  );
+
+  for (const listing of otherListings) {
+    const exists = marketplaceSyncActions.some(action =>
+      action.marketplace_listing_id === listing.id &&
+      action.action_type === "end_listing" &&
+      ["pending", "approved", "processing"].includes(action.status)
+    );
+    if (exists) continue;
+
+    const { data, error } = await supabaseClient
+      .from("marketplace_sync_actions")
+      .insert({
+        inventory_item_id: item.id,
+        marketplace_listing_id: listing.id,
+        marketplace: listing.marketplace,
+        action_type: "end_listing",
+        status: "pending",
+        reason: `Item sold on ${soldMarketplace || "another channel"}; review before ending this listing.`
+      })
+      .select()
+      .single();
+    if (error) throw error;
+    marketplaceSyncActions.unshift(data);
+  }
+}
+
+function renderMarketplaceSyncActions() {
+  const container = $("syncActionList");
+  const count = $("syncActionCount");
+  if (!container || !count) return;
+
+  const pending = marketplaceSyncActions.filter(action => action.status === "pending");
+  count.textContent = `${pending.length} pending`;
+  container.innerHTML = pending.length ? pending.map(action => {
+    const item = items.find(row => row.id === action.inventory_item_id);
+    return `
+      <div class="sync-action-row">
+        <div>
+          <strong>${escapeHtml(item?.title || "Inventory item")}</strong>
+          <span>${escapeHtml(action.reason || "")}</span>
+        </div>
+        <div>
+          <span class="badge">${escapeHtml(action.marketplace)}</span>
+          <span class="badge">Review required</span>
+        </div>
+      </div>`;
+  }).join("") : '<p class="empty">No marketplace actions are waiting for review.</p>';
 }
 
 async function saveCloudItem(item) {
@@ -215,6 +286,7 @@ const marketplaces = [
 // Legacy browser inventory is deliberately left untouched as a rollback backup.
 let items = [];
 let marketplaceListings = [];
+let marketplaceSyncActions = [];
 let settings = loadSettings();
 let opportunities = loadOpportunities();
 
@@ -864,6 +936,7 @@ function renderAll() {
   renderScout();
   renderMarketplaceCards();
   renderEbayListingReview();
+  renderMarketplaceSyncActions();
   renderSettings();
 }
 
@@ -1098,6 +1171,7 @@ $("itemForm").addEventListener("submit", async (event) => {
     const saved = await saveCloudItem(record);
     if (index >= 0) items[index] = saved;
     else items.unshift(saved);
+    await queueSaleProtectionActions(saved);
     renderAll();
     $("itemDialog").close();
     toast(index >= 0 ? "Item updated in cloud" : "Item added to cloud");
