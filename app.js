@@ -432,6 +432,76 @@ function renderMarketplaceCards() {
   });
 }
 
+function normalizeMatchTitle(value = "") {
+  return String(value).toLowerCase()
+    .replace(/\b(vintage|rare|new|used|lot|set|the|a|an|with|and)\b/g, " ")
+    .replace(/[^a-z0-9]+/g, " ")
+    .trim();
+}
+
+function titleTokens(value = "") {
+  return new Set(normalizeMatchTitle(value).split(/\s+/).filter(token => token.length > 1));
+}
+
+function suggestInventoryMatch(listing) {
+  if (listing.inventory_item_id) {
+    const confirmed = items.find(item => item.id === listing.inventory_item_id);
+    return confirmed ? { item: confirmed, score: 100, reason: "Confirmed link" } : null;
+  }
+
+  const listingTokens = titleTokens(listing.title);
+  if (!listingTokens.size) return null;
+
+  let best = null;
+  for (const item of items) {
+    const itemTokens = titleTokens(item.title);
+    if (!itemTokens.size) continue;
+    const intersection = [...listingTokens].filter(token => itemTokens.has(token)).length;
+    const union = new Set([...listingTokens, ...itemTokens]).size;
+    const score = union ? Math.round((intersection / union) * 100) : 0;
+    if (!best || score > best.score) best = { item, score, reason: "Title similarity" };
+  }
+
+  // Suggestions below 45% are too weak to put in front of the user as a match.
+  return best && best.score >= 45 ? best : null;
+}
+
+async function confirmEbayListingMatch(listingId, inventoryItemId) {
+  const { error } = await supabaseClient
+    .from("marketplace_listings")
+    .update({
+      inventory_item_id: inventoryItemId,
+      suggested_inventory_item_id: inventoryItemId,
+      match_status: "confirmed",
+      match_score: 100,
+      match_reason: "Confirmed by user",
+      match_reviewed_at: new Date().toISOString()
+    })
+    .eq("id", listingId)
+    .eq("marketplace", "eBay");
+  if (error) throw error;
+  await loadMarketplaceListings();
+  renderEbayListingReview();
+}
+
+async function markEbayListingNoMatch(listingId) {
+  const { error } = await supabaseClient
+    .from("marketplace_listings")
+    .update({
+      inventory_item_id: null,
+      suggested_inventory_item_id: null,
+      match_status: "no_match",
+      match_score: null,
+      match_reason: "Reviewed: no existing inventory match",
+      match_reviewed_at: new Date().toISOString()
+    })
+    .eq("id", listingId)
+    .eq("marketplace", "eBay");
+  if (error) throw error;
+  await loadMarketplaceListings();
+  renderEbayListingReview();
+}
+
 function renderEbayListingReview() {
   const ebay = marketplaceListings.filter(listing => listing.marketplace === "eBay");
   const linked = ebay.filter(listing => listing.inventory_item_id);
@@ -451,22 +521,55 @@ function renderEbayListingReview() {
   lastSync.textContent = latest ? new Date(latest).toLocaleString() : "Not synced";
 
   table.innerHTML = ebay.length ? ebay.map(listing => {
-    const inventory = listing.inventory_item_id
+    const confirmed = listing.inventory_item_id
       ? items.find(item => item.id === listing.inventory_item_id)
       : null;
-    const match = inventory
-      ? escapeHtml(inventory.title)
-      : '<span class="review-needed">Needs review</span>';
+    const suggestion = confirmed ? { item: confirmed, score: 100 } : suggestInventoryMatch(listing);
+    const suggestionHtml = suggestion
+      ? `<strong>${escapeHtml(suggestion.item.title)}</strong><br><span class="item-meta">${suggestion.score}% title match</span>`
+      : '<span class="review-needed">No confident match</span>';
+    const reviewHtml = confirmed
+      ? '<span class="match-confirmed">Confirmed</span>'
+      : `<div class="match-actions">
+          ${suggestion ? `<button class="secondary confirm-ebay-match" data-listing="${listing.id}" data-inventory="${suggestion.item.id}" type="button">Confirm</button>` : ""}
+          <button class="text-button no-ebay-match" data-listing="${listing.id}" type="button">No match</button>
+        </div>`;
+
     return `
       <tr>
         <td><strong>${escapeHtml(listing.title || "Untitled eBay listing")}</strong><br><span class="item-meta">ID ${escapeHtml(listing.external_listing_id || "")}</span></td>
         <td>${currency(listing.price)}</td>
         <td>${escapeHtml(listing.status || "")}</td>
-        <td>${match}</td>
+        <td>${suggestionHtml}</td>
+        <td>${reviewHtml}</td>
         <td>${listing.last_synced_at ? new Date(listing.last_synced_at).toLocaleString() : "—"}</td>
       </tr>
     `;
-  }).join("") : '<tr><td colspan="5" class="empty">No eBay listings imported yet. Nothing will appear here until your seller account is authorized.</td></tr>';
+  }).join("") : '<tr><td colspan="6" class="empty">No eBay listings imported yet. Nothing will appear here until your seller account is authorized.</td></tr>';
+
+  document.querySelectorAll(".confirm-ebay-match").forEach(button => {
+    button.addEventListener("click", async () => {
+      try {
+        await confirmEbayListingMatch(button.dataset.listing, button.dataset.inventory);
+        toast("eBay listing linked to inventory.");
+      } catch (error) {
+        console.error(error);
+        toast("Could not save the match.");
+      }
+    });
+  });
+
+  document.querySelectorAll(".no-ebay-match").forEach(button => {
+    button.addEventListener("click", async () => {
+      try {
+        await markEbayListingNoMatch(button.dataset.listing);
+        toast("Marked as a new/unmatched inventory item.");
+      } catch (error) {
+        console.error(error);
+        toast("Could not save the review.");
+      }
+    });
+  });
 }
 
 function opportunityNumbers(opportunity) {
