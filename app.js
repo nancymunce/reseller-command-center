@@ -670,7 +670,7 @@ function exportCsv() {
     if (Array.isArray(value)) value = value.join("|");
     return `"${String(value).replaceAll('"','""')}"`;
   }).join(","));
-  downloadBlob([headers.join(","), ...rows].join("\\n"), "reseller-inventory.csv", "text/csv");
+  downloadBlob([headers.join(","), ...rows].join("\n"), "reseller-inventory.csv", "text/csv");
 }
 
 function downloadBlob(content, filename, type) {
@@ -723,7 +723,7 @@ async function importFile(file) {
     return;
   }
 
-  const lines = text.split(/\\r?\\n/).filter(Boolean);
+  const lines = text.split(/\r?\n/).filter(Boolean);
   if (lines.length < 2) throw new Error("CSV contains no rows.");
 
   const headers = parseCsvLine(lines[0]);
