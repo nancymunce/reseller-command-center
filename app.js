@@ -881,7 +881,16 @@ $("signOutBtn")?.addEventListener("click", async () => {
 
 renderMarketplaceChecks();
 renderAll();
-initializeAuthentication();
+if (typeof supabaseClient === "undefined") {
+  const gateMessage = document.querySelector("#authGate .auth-card p");
+  if (gateMessage) gateMessage.textContent = "Cloud services could not be loaded. Refresh this page and try again.";
+} else {
+  initializeAuthentication().catch(error => {
+    console.error("Authentication initialization failed:", error);
+    const gateMessage = document.querySelector("#authGate .auth-card p");
+    if (gateMessage) gateMessage.textContent = "Could not connect to cloud inventory. Refresh this page and try again.";
+  });
+}
 const initialView = location.hash.slice(1);
 if (document.getElementById(initialView)?.classList.contains("view")) showView(initialView);
 if (initialView === "sourcing") setTimeout(requestScoutData, 300);
