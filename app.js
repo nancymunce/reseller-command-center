@@ -1,5 +1,5 @@
 // Supabase authentication protects the cloud-backed version of the app.
-// Inventory still remains in localStorage during this integration phase.
+// Supabase is the inventory source of truth. localStorage remains untouched as a safety backup during rollout.
 async function initializeAuthentication() {
   const { data: { session } } = await supabaseClient.auth.getSession();
   setAuthenticatedState(Boolean(session));
