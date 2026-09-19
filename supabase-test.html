@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Reseller Command Center — Supabase Test</title>
+  <style>
+    body { font-family: system-ui, sans-serif; max-width: 620px; margin: 60px auto; padding: 20px; line-height: 1.5; }
+    form { display: grid; gap: 12px; }
+    input, button { font: inherit; padding: 10px; }
+    .status { margin-top: 20px; padding: 14px; border: 1px solid #ccc; border-radius: 10px; }
+  </style>
+</head>
+<body>
+  <h1>Supabase Connection Test</h1>
+  <p>This isolated page tests authentication and read-only access. It does not modify Reseller Command Center inventory.</p>
+  <form id="loginForm">
+    <input id="email" type="email" value="aflourishinglifestyle@gmail.com" autocomplete="email" required>
+    <input id="password" type="password" placeholder="Supabase password" autocomplete="current-password" required>
+    <button type="submit">Sign In & Test Connection</button>
+  </form>
+  <div id="status" class="status">Not tested yet.</div>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script>
+    const client = window.supabase.createClient(
+      "https://desygsdzinuvofjufvft.supabase.co",
+      "sb_publishable_iw1n9EupBt8qFZUNrvPrBA_UEnA8bqn"
+    );
+    const status = document.getElementById("status");
+    document.getElementById("loginForm").addEventListener("submit", async (event) => {
+      event.preventDefault();
+      status.textContent = "Signing in…";
+      const { error: authError } = await client.auth.signInWithPassword({
+        email: document.getElementById("email").value.trim(),
+        password: document.getElementById("password").value
+      });
+      document.getElementById("password").value = "";
+      if (authError) {
+        status.textContent = "Sign-in failed: " + authError.message;
+        return;
+      }
+      status.textContent = "Signed in. Testing private inventory access…";
+      const { error: dbError } = await client.from("inventory_items").select("id").limit(1);
+      status.textContent = dbError
+        ? "Signed in, but database test failed: " + dbError.message
+        : "SUCCESS — Supabase authentication and private inventory access are working.";
+    });
+  </script>
+</body>
+</html>

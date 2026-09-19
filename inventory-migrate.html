@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Inventory Migration — Reseller Command Center</title>
+<style>body{font-family:system-ui,sans-serif;max-width:700px;margin:50px auto;padding:20px;line-height:1.5;background:#f5f2ec;color:#1f2933}.card{background:#fff;border:1px solid #e4ded5;border-radius:16px;padding:24px;margin:18px 0}label{display:grid;gap:6px;margin:12px 0;font-weight:700}input,button{font:inherit;padding:10px}.muted{color:#68727d}</style>
+</head>
+<body>
+<h1>Inventory Migration</h1>
+<p>This page copies your existing Reseller Command Center inventory from this browser into your private Supabase table. It does not delete or alter the browser copy.</p>
+<div class="card"><h2>1. Browser inventory</h2><p id="localStatus">Checking...</p></div>
+<div class="card"><h2>2. Sign in and copy</h2>
+<label>Email<input id="email" type="email" value="aflourishinglifestyle@gmail.com" autocomplete="email"></label>
+<label>Password<input id="password" type="password" autocomplete="current-password"></label>
+<button id="migrateBtn">Sign In &amp; Copy Inventory</button>
+<p id="result" class="muted">Migration has not run.</p></div>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script>
+const STORAGE_KEY="resellerCommandCenter.items.v1";
+const client=window.supabase.createClient("https://desygsdzinuvofjufvft.supabase.co","sb_publishable_iw1n9EupBt8qFZUNrvPrBA_UEnA8bqn");
+function localItems(){try{return JSON.parse(localStorage.getItem(STORAGE_KEY)||"[]")}catch{return []}}
+function toRow(i){return{id:i.id,title:i.title,brand:i.brand||null,category:i.category||null,purchase_cost:Number(i.purchaseCost||0),purchase_date:i.purchaseDate||null,source:i.source||null,storage_location:i.storage||null,status:i.status||"Unlisted",list_price:Number(i.listPrice||0),listed_marketplaces:i.listedMarketplaces||[],sale_marketplace:i.saleMarketplace||null,sale_date:i.saleDate||null,sale_price:Number(i.salePrice||0),shipping_collected:Number(i.shippingCollected||0),fees:Number(i.fees||0),shipping_cost:Number(i.shippingCost||0),other_expenses:Number(i.otherExpenses||0),notes:i.notes||null}}
+function showLocalCount(){const n=localItems().length;document.getElementById("localStatus").textContent=n?n+" inventory record"+(n===1?"":"s")+" found in this browser.":"No inventory records found in this browser. STOP and open this page in the browser where your real inventory is stored."}
+showLocalCount();
+document.getElementById("migrateBtn").addEventListener("click",async()=>{
+ const out=document.getElementById("result"),items=localItems();
+ if(!items.length){out.textContent="STOPPED — no local inventory records were found. Nothing was changed.";return}
+ out.textContent="Signing in...";
+ const {error:authError}=await client.auth.signInWithPassword({email:document.getElementById("email").value.trim(),password:document.getElementById("password").value});
+ document.getElementById("password").value="";
+ if(authError){out.textContent="Sign-in failed: "+authError.message;return}
+ out.textContent="Signed in. Copying "+items.length+" records...";
+ const {error:writeError}=await client.from("inventory_items").upsert(items.map(toRow),{onConflict:"id"});
+ if(writeError){out.textContent="COPY FAILED — "+writeError.message+". Your browser inventory was not changed.";return}
+ const {data,error:readError}=await client.from("inventory_items").select("id,title");
+ if(readError){out.textContent="Records were sent, but verification failed: "+readError.message+". Your browser inventory was not changed.";return}
+ const ids=new Set(items.map(i=>i.id));const matched=(data||[]).filter(r=>ids.has(r.id));
+ out.textContent=matched.length===items.length?"SUCCESS — "+matched.length+" of "+items.length+" local inventory records are now verified in Supabase. Your original browser inventory remains unchanged.":"CHECK NEEDED — "+matched.length+" of "+items.length+" local records were verified in Supabase. Your browser inventory remains unchanged.";
+});
+</script></body></html>
