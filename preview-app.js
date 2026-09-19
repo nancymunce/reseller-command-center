@@ -703,8 +703,7 @@ async function importFile(file) {
     return;
   }
 
-  const lines = text.split(/\r?
-/).filter(Boolean);
+  const lines = text.split(/\\r?\\n/).filter(Boolean);
   if (lines.length < 2) throw new Error("CSV contains no rows.");
   const headers = parseCsvLine(lines[0]);
   const imported = lines.slice(1).map(line => {
