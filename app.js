@@ -675,8 +675,7 @@ function exportCsv() {
     if (Array.isArray(value)) value = value.join("|");
     return `"${String(value).replaceAll('"','""')}"`;
   }).join(","));
-  downloadBlob([headers.join(","), ...rows].join("
-"), "reseller-inventory.csv", "text/csv");
+  downloadBlob([headers.join(","), ...rows].join("\\n"), "reseller-inventory.csv", "text/csv");
 }
 
 function downloadBlob(content, filename, type) {
@@ -689,36 +688,63 @@ function downloadBlob(content, filename, type) {
   URL.revokeObjectURL(url);
 }
 
+async function importCloudItems(importedItems) {
+  if (!Array.isArray(importedItems) || importedItems.length === 0) return 0;
+
+  const normalized = importedItems.map(item => ({
+    ...item,
+    id: item.id || crypto.randomUUID()
+  }));
+
+  const payload = normalized.map(itemToDatabase);
+  const { error } = await supabaseClient
+    .from("inventory_items")
+    .upsert(payload, { onConflict: "id" });
+
+  if (error) throw error;
+  await loadCloudInventory();
+  return normalized.length;
+}
+
 async function importFile(file) {
   const text = await file.text();
+
   if (file.name.toLowerCase().endsWith(".json")) {
     const data = JSON.parse(text);
-    items = Array.isArray(data) ? data : data.items || [];
-    if (data.settings) settings = { ...settings, ...data.settings };
-    if (Array.isArray(data.opportunities)) opportunities = data.opportunities;
-    saveSettings();
-    localStorage.setItem(OPPORTUNITIES_KEY, JSON.stringify(opportunities));
-    saveItems();
-    toast("Backup imported");
+    const importedItems = Array.isArray(data) ? data : data.items || [];
+
+    if (data.settings) {
+      settings = { ...settings, ...data.settings };
+      saveSettings();
+    }
+    if (Array.isArray(data.opportunities)) {
+      opportunities = data.opportunities;
+      localStorage.setItem(OPPORTUNITIES_KEY, JSON.stringify(opportunities));
+      renderScout();
+    }
+
+    const count = await importCloudItems(importedItems);
+    toast(`${count} inventory items imported to cloud`);
     return;
   }
 
-  const lines = text.split(/\r?
-/).filter(Boolean);
+  const lines = text.split(/\\r?\\n/).filter(Boolean);
   if (lines.length < 2) throw new Error("CSV contains no rows.");
+
   const headers = parseCsvLine(lines[0]);
   const imported = lines.slice(1).map(line => {
     const values = parseCsvLine(line);
     const obj = {};
     headers.forEach((h, i) => obj[h] = values[i] ?? "");
-    ["purchaseCost","listPrice","salePrice","shippingCollected","fees","shippingCost","otherExpenses"].forEach(k => obj[k] = Number(obj[k] || 0));
+    ["purchaseCost","listPrice","salePrice","shippingCollected","fees","shippingCost","otherExpenses"]
+      .forEach(k => obj[k] = Number(obj[k] || 0));
     obj.listedMarketplaces = (obj.listedMarketplaces || "").split("|").filter(Boolean);
     obj.id = obj.id || crypto.randomUUID();
     return obj;
   });
-  items = [...items, ...imported];
-  saveItems();
-  toast(`${imported.length} items imported`);
+
+  const count = await importCloudItems(imported);
+  toast(`${count} items imported to cloud`);
 }
 
 function parseCsvLine(line) {
@@ -872,6 +898,28 @@ $("clearDataBtn").addEventListener("click", () => {
   alert("Bulk cloud deletion is disabled for safety. Delete individual inventory items instead.");
 });
 
+$("loginForm")?.addEventListener("submit", async (event) => {
+  event.preventDefault();
+  const email = $("loginEmail").value.trim();
+  const password = $("loginPassword").value;
+  const message = $("loginMessage");
+  const button = event.currentTarget.querySelector('button[type="submit"]');
+
+  if (message) message.textContent = "Signing in...";
+  if (button) button.disabled = true;
+
+  try {
+    const { error } = await supabaseClient.auth.signInWithPassword({ email, password });
+    if (error) throw error;
+    if (message) message.textContent = "";
+  } catch (error) {
+    console.error("Sign-in failed:", error);
+    if (message) message.textContent = error?.message || "Sign-in failed. Check your email and password and try again.";
+  } finally {
+    if (button) button.disabled = false;
+  }
+});
+
 $("signOutBtn")?.addEventListener("click", async () => {
   await supabaseClient.auth.signOut();
   items = [];
@@ -881,7 +929,16 @@ $("signOutBtn")?.addEventListener("click", async () => {
 
 renderMarketplaceChecks();
 renderAll();
-initializeAuthentication();
+if (typeof supabaseClient === "undefined") {
+  const gateMessage = document.querySelector("#authGate .auth-card p");
+  if (gateMessage) gateMessage.textContent = "Cloud services could not be loaded. Refresh this page and try again.";
+} else {
+  initializeAuthentication().catch(error => {
+    console.error("Authentication initialization failed:", error);
+    const gateMessage = document.querySelector("#authGate .auth-card p");
+    if (gateMessage) gateMessage.textContent = "Could not connect to cloud inventory. Refresh this page and try again.";
+  });
+}
 const initialView = location.hash.slice(1);
 if (document.getElementById(initialView)?.classList.contains("view")) showView(initialView);
 if (initialView === "sourcing") setTimeout(requestScoutData, 300);
