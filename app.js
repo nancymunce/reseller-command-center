@@ -1,3 +1,120 @@
+// Supabase authentication protects the cloud-backed version of the app.
+// Supabase is the inventory source of truth. localStorage remains untouched as a safety backup during rollout.
+async function initializeAuthentication() {
+  const { data: { session } } = await supabaseClient.auth.getSession();
+  setAuthenticatedState(Boolean(session));
+  if (session) await loadCloudInventory();
+
+  supabaseClient.auth.onAuthStateChange((_event, nextSession) => {
+    setAuthenticatedState(Boolean(nextSession));
+    if (nextSession) loadCloudInventory();
+  });
+}
+
+async function loadCloudInventory() {
+  const { data, error } = await supabaseClient
+    .from("inventory_items")
+    .select("*")
+    .order("created_at", { ascending: false });
+  if (error) {
+    await verifySupabaseAccess();
+    throw error;
+  }
+  items = (data || []).map(databaseToItem);
+  renderAll();
+  await verifySupabaseAccess();
+}
+
+async function saveCloudItem(item) {
+  const { data, error } = await supabaseClient
+    .from("inventory_items")
+    .upsert(itemToDatabase(item), { onConflict: "id" })
+    .select()
+    .single();
+  if (error) throw error;
+  return databaseToItem(data);
+}
+
+async function deleteCloudItem(id) {
+  const { error } = await supabaseClient.from("inventory_items").delete().eq("id", id);
+  if (error) throw error;
+}
+
+function setAuthenticatedState(isAuthenticated) {
+  const gate = document.getElementById("authGate");
+  const shell = document.getElementById("appShell");
+  if (gate) gate.hidden = isAuthenticated;
+  if (shell) shell.hidden = !isAuthenticated;
+}
+async function verifySupabaseAccess() {
+  const pill = document.getElementById("cloudStatusPill");
+  const statusText = document.getElementById("cloudStatusText");
+  const account = document.getElementById("cloudAccount");
+  try {
+    await testSupabaseInventoryConnection();
+    const result = await supabaseClient.auth.getUser();
+    const user = result.data.user;
+    if (pill) { pill.textContent = "Connected"; pill.classList.add("ready"); }
+    if (statusText) statusText.textContent = "Supabase is connected and your private inventory table is accessible.";
+    if (account) account.textContent = user && user.email ? "Signed in as " + user.email : "";
+    console.info("Supabase inventory connection verified.");
+  } catch (error) {
+    if (pill) { pill.textContent = "Needs attention"; pill.classList.remove("ready"); }
+    if (statusText) statusText.textContent = "Signed in, but the inventory database could not be accessed.";
+    if (account) account.textContent = "";
+    console.error("Supabase inventory connection failed:", error);
+    toast("Signed in, but database access needs attention");
+  }
+}
+
+
+
+// Translate between the existing browser model (camelCase) and the
+// Supabase inventory_items table (snake_case). Keeping this isolated makes
+// migration reversible and prevents the rest of the dashboard from changing.
+function itemToDatabase(item) {
+  return {
+    id: item.id,
+    title: item.title,
+    brand: item.brand || null,
+    category: item.category || null,
+    purchase_cost: Number(item.purchaseCost || 0),
+    purchase_date: item.purchaseDate || null,
+    source: item.source || null,
+    storage_location: item.storage || null,
+    status: item.status || "Unlisted",
+    list_price: Number(item.listPrice || 0),
+    listed_marketplaces: item.listedMarketplaces || [],
+    sale_marketplace: item.saleMarketplace || null,
+    sale_date: item.saleDate || null,
+    sale_price: Number(item.salePrice || 0),
+    shipping_collected: Number(item.shippingCollected || 0),
+    fees: Number(item.fees || 0),
+    shipping_cost: Number(item.shippingCost || 0),
+    other_expenses: Number(item.otherExpenses || 0),
+    notes: item.notes || null
+  };
+}
+
+function databaseToItem(row) {
+  return {
+    id: row.id, title: row.title, brand: row.brand || "", category: row.category || "",
+    purchaseCost: Number(row.purchase_cost || 0), purchaseDate: row.purchase_date || "",
+    source: row.source || "", storage: row.storage_location || "", status: row.status || "Unlisted",
+    listPrice: Number(row.list_price || 0), listedMarketplaces: row.listed_marketplaces || [],
+    saleMarketplace: row.sale_marketplace || "", saleDate: row.sale_date || "",
+    salePrice: Number(row.sale_price || 0), shippingCollected: Number(row.shipping_collected || 0),
+    fees: Number(row.fees || 0), shippingCost: Number(row.shipping_cost || 0),
+    otherExpenses: Number(row.other_expenses || 0), notes: row.notes || ""
+  };
+}
+
+async function testSupabaseInventoryConnection() {
+  const { data, error } = await supabaseClient.from("inventory_items").select("id").limit(1);
+  if (error) throw error;
+  return data;
+}
+
 const STORAGE_KEY = "resellerCommandCenter.items.v1";
 const SETTINGS_KEY = "resellerCommandCenter.settings.v1";
 const OPPORTUNITIES_KEY = "resellerCommandCenter.opportunities.v1";
@@ -558,7 +675,7 @@ function exportCsv() {
     if (Array.isArray(value)) value = value.join("|");
     return `"${String(value).replaceAll('"','""')}"`;
   }).join(","));
-  downloadBlob([headers.join(","), ...rows].join("\n"), "reseller-inventory.csv", "text/csv");
+  downloadBlob([headers.join(","), ...rows].join("\\n"), "reseller-inventory.csv", "text/csv");
 }
 
 function downloadBlob(content, filename, type) {
@@ -571,35 +688,63 @@ function downloadBlob(content, filename, type) {
   URL.revokeObjectURL(url);
 }
 
+async function importCloudItems(importedItems) {
+  if (!Array.isArray(importedItems) || importedItems.length === 0) return 0;
+
+  const normalized = importedItems.map(item => ({
+    ...item,
+    id: item.id || crypto.randomUUID()
+  }));
+
+  const payload = normalized.map(itemToDatabase);
+  const { error } = await supabaseClient
+    .from("inventory_items")
+    .upsert(payload, { onConflict: "id" });
+
+  if (error) throw error;
+  await loadCloudInventory();
+  return normalized.length;
+}
+
 async function importFile(file) {
   const text = await file.text();
+
   if (file.name.toLowerCase().endsWith(".json")) {
     const data = JSON.parse(text);
-    items = Array.isArray(data) ? data : data.items || [];
-    if (data.settings) settings = { ...settings, ...data.settings };
-    if (Array.isArray(data.opportunities)) opportunities = data.opportunities;
-    saveSettings();
-    localStorage.setItem(OPPORTUNITIES_KEY, JSON.stringify(opportunities));
-    saveItems();
-    toast("Backup imported");
+    const importedItems = Array.isArray(data) ? data : data.items || [];
+
+    if (data.settings) {
+      settings = { ...settings, ...data.settings };
+      saveSettings();
+    }
+    if (Array.isArray(data.opportunities)) {
+      opportunities = data.opportunities;
+      localStorage.setItem(OPPORTUNITIES_KEY, JSON.stringify(opportunities));
+      renderScout();
+    }
+
+    const count = await importCloudItems(importedItems);
+    toast(`${count} inventory items imported to cloud`);
     return;
   }
 
-  const lines = text.split(/\r?\n/).filter(Boolean);
+  const lines = text.split(/\\r?\\n/).filter(Boolean);
   if (lines.length < 2) throw new Error("CSV contains no rows.");
+
   const headers = parseCsvLine(lines[0]);
   const imported = lines.slice(1).map(line => {
     const values = parseCsvLine(line);
     const obj = {};
     headers.forEach((h, i) => obj[h] = values[i] ?? "");
-    ["purchaseCost","listPrice","salePrice","shippingCollected","fees","shippingCost","otherExpenses"].forEach(k => obj[k] = Number(obj[k] || 0));
+    ["purchaseCost","listPrice","salePrice","shippingCollected","fees","shippingCost","otherExpenses"]
+      .forEach(k => obj[k] = Number(obj[k] || 0));
     obj.listedMarketplaces = (obj.listedMarketplaces || "").split("|").filter(Boolean);
     obj.id = obj.id || crypto.randomUUID();
     return obj;
   });
-  items = [...items, ...imported];
-  saveItems();
-  toast(`${imported.length} items imported`);
+
+  const count = await importCloudItems(imported);
+  toast(`${count} items imported to cloud`);
 }
 
 function parseCsvLine(line) {
@@ -630,25 +775,37 @@ $("addItemBtn").addEventListener("click", () => openItemDialog());
 $("closeDialogBtn").addEventListener("click", () => $("itemDialog").close());
 $("cancelBtn").addEventListener("click", () => $("itemDialog").close());
 
-$("itemForm").addEventListener("submit", (event) => {
+$("itemForm").addEventListener("submit", async (event) => {
   event.preventDefault();
   const record = readFormItem();
   if (!record.title || !record.purchaseDate) return;
   const index = items.findIndex(i => i.id === record.id);
-  if (index >= 0) items[index] = record;
-  else items.unshift(record);
-  saveItems();
-  $("itemDialog").close();
-  toast(index >= 0 ? "Item updated" : "Item added");
+  try {
+    const saved = await saveCloudItem(record);
+    if (index >= 0) items[index] = saved;
+    else items.unshift(saved);
+    renderAll();
+    $("itemDialog").close();
+    toast(index >= 0 ? "Item updated in cloud" : "Item added to cloud");
+  } catch (error) {
+    console.error("Cloud save failed:", error);
+    alert("The item was not saved. Your existing inventory was not changed. " + error.message);
+  }
 });
 
-$("deleteItemBtn").addEventListener("click", () => {
+$("deleteItemBtn").addEventListener("click", async () => {
   const id = $("itemId").value;
   if (!id || !confirm("Delete this item permanently?")) return;
-  items = items.filter(i => i.id !== id);
-  saveItems();
-  $("itemDialog").close();
-  toast("Item deleted");
+  try {
+    await deleteCloudItem(id);
+    items = items.filter(i => i.id !== id);
+    renderAll();
+    $("itemDialog").close();
+    toast("Item deleted from cloud");
+  } catch (error) {
+    console.error("Cloud delete failed:", error);
+    alert("The item was not deleted. " + error.message);
+  }
 });
 
 $("inventorySearch").addEventListener("input", renderInventory);
@@ -738,14 +895,50 @@ $("importFile").addEventListener("change", async (event) => {
 });
 
 $("clearDataBtn").addEventListener("click", () => {
-  if (!confirm("Clear all inventory and sales data from this browser?")) return;
+  alert("Bulk cloud deletion is disabled for safety. Delete individual inventory items instead.");
+});
+
+$("loginForm")?.addEventListener("submit", async (event) => {
+  event.preventDefault();
+  const email = $("loginEmail").value.trim();
+  const password = $("loginPassword").value;
+  const message = $("loginMessage");
+  const button = event.currentTarget.querySelector('button[type="submit"]');
+
+  if (message) message.textContent = "Signing in...";
+  if (button) button.disabled = true;
+
+  try {
+    const { error } = await supabaseClient.auth.signInWithPassword({ email, password });
+    if (error) throw error;
+    if (message) message.textContent = "";
+  } catch (error) {
+    console.error("Sign-in failed:", error);
+    if (message) message.textContent = error?.message || "Sign-in failed. Check your email and password and try again.";
+  } finally {
+    if (button) button.disabled = false;
+  }
+});
+
+$("signOutBtn")?.addEventListener("click", async () => {
+  await supabaseClient.auth.signOut();
   items = [];
-  saveItems();
-  toast("All data cleared");
+  renderAll();
+  toast("Signed out");
 });
 
 renderMarketplaceChecks();
 renderAll();
+if (typeof supabaseClient === "undefined") {
+  const gateMessage = document.querySelector("#authGate .auth-card p");
+  if (gateMessage) gateMessage.textContent = "Cloud services could not be loaded. Refresh this page and try again.";
+} else {
+  initializeAuthentication().catch(error => {
+    console.error("Authentication initialization failed:", error);
+    const gateMessage = document.querySelector("#authGate .auth-card p");
+    if (gateMessage) gateMessage.textContent = "Could not connect to cloud inventory. Refresh this page and try again.";
+  });
+}
 const initialView = location.hash.slice(1);
 if (document.getElementById(initialView)?.classList.contains("view")) showView(initialView);
 if (initialView === "sourcing") setTimeout(requestScoutData, 300);

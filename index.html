@@ -7,6 +7,19 @@
   <link rel="stylesheet" href="styles.css" />
 </head>
 <body>
+  <section id="authGate" class="auth-gate">
+    <form id="loginForm" class="auth-card">
+      <p class="eyebrow">A Flourishing Lifestyle</p>
+      <h1>Reseller Command Center</h1>
+      <p class="auth-copy">Sign in to access your private reseller workspace.</p>
+      <label>Email<input id="loginEmail" type="email" autocomplete="email" required value="aflourishinglifestyle@gmail.com" /></label>
+      <label>Password<input id="loginPassword" type="password" autocomplete="current-password" required /></label>
+      <button class="primary" type="submit">Sign In</button>
+      <p id="loginMessage" class="auth-message" aria-live="polite"></p>
+    </form>
+  </section>
+
+  <div id="appShell" hidden>
   <header class="topbar">
     <div>
       <p class="eyebrow">Nancy's Reselling Business</p>
@@ -303,6 +316,13 @@
 
       <div class="settings-grid">
         <article class="panel">
+          <h3>Cloud Connection</h3>
+          <p id="cloudStatusText">Checking Supabase connection…</p>
+          <div class="status-line"><span>Database</span><span id="cloudStatusPill" class="connection-pill">Checking</span></div>
+          <p class="item-meta" id="cloudAccount"></p>
+          <button class="secondary" id="signOutBtn" type="button">Sign Out</button>
+        </article>
+        <article class="panel">
           <h3>Business Preferences</h3>
           <label>
             Default marketplace
@@ -328,10 +348,10 @@
 
         <article class="panel">
           <h3>Backup</h3>
-          <p>Your records are currently stored in this browser. Export a backup regularly.</p>
+          <p>Your inventory is stored securely in Supabase. JSON export remains available as an additional backup.</p>
           <div class="stack">
             <button class="secondary" id="exportBackupBtn">Download JSON Backup</button>
-            <button class="danger" id="clearDataBtn">Clear All Data</button>
+            <button class="danger" id="clearDataBtn">Bulk Delete Disabled</button>
           </div>
         </article>
 
@@ -576,6 +596,11 @@
   </dialog>
 
   <div id="toast" class="toast"></div>
+  </div>
+  <!-- Supabase browser client. The publishable key is designed to be public;
+       Row Level Security in Supabase protects the actual inventory data. -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="supabase-config.js"></script>
   <script src="app.js"></script>
 </body>
 </html>
