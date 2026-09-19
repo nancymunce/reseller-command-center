@@ -872,6 +872,28 @@ $("clearDataBtn").addEventListener("click", () => {
   alert("Bulk cloud deletion is disabled for safety. Delete individual inventory items instead.");
 });
 
+$("loginForm")?.addEventListener("submit", async (event) => {
+  event.preventDefault();
+  const email = $("loginEmail").value.trim();
+  const password = $("loginPassword").value;
+  const message = $("loginMessage");
+  const button = event.currentTarget.querySelector('button[type="submit"]');
+
+  if (message) message.textContent = "Signing in...";
+  if (button) button.disabled = true;
+
+  try {
+    const { error } = await supabaseClient.auth.signInWithPassword({ email, password });
+    if (error) throw error;
+    if (message) message.textContent = "";
+  } catch (error) {
+    console.error("Sign-in failed:", error);
+    if (message) message.textContent = error?.message || "Sign-in failed. Check your email and password and try again.";
+  } finally {
+    if (button) button.disabled = false;
+  }
+});
+
 $("signOutBtn")?.addEventListener("click", async () => {
   await supabaseClient.auth.signOut();
   items = [];
