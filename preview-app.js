@@ -675,8 +675,7 @@ function exportCsv() {
     if (Array.isArray(value)) value = value.join("|");
     return `"${String(value).replaceAll('"','""')}"`;
   }).join(","));
-  downloadBlob([headers.join(","), ...rows].join("
-"), "reseller-inventory.csv", "text/csv");
+  downloadBlob([headers.join(","), ...rows].join("\\n"), "reseller-inventory.csv", "text/csv");
 }
 
 function downloadBlob(content, filename, type) {
