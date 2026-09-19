@@ -6,7 +6,20 @@
   <title>Reseller Command Center</title>
   <link rel="stylesheet" href="styles.css" />
 </head>
-<body>\n  <section id="authGate" class="auth-gate">\n    <form id="loginForm" class="auth-card">\n      <p class="eyebrow">A Flourishing Lifestyle</p>\n      <h1>Reseller Command Center</h1>\n      <p class="auth-copy">Sign in to access your private reseller workspace.</p>\n      <label>Email<input id="loginEmail" type="email" autocomplete="email" required value="aflourishinglifestyle@gmail.com" /></label>\n      <label>Password<input id="loginPassword" type="password" autocomplete="current-password" required /></label>\n      <button class="primary" type="submit">Sign In</button>\n      <p id="loginMessage" class="auth-message" aria-live="polite"></p>\n    </form>\n  </section>\n\n  <div id="appShell" hidden>
+<body>
+  <section id="authGate" class="auth-gate">
+    <form id="loginForm" class="auth-card">
+      <p class="eyebrow">A Flourishing Lifestyle</p>
+      <h1>Reseller Command Center</h1>
+      <p class="auth-copy">Sign in to access your private reseller workspace.</p>
+      <label>Email<input id="loginEmail" type="email" autocomplete="email" required value="aflourishinglifestyle@gmail.com" /></label>
+      <label>Password<input id="loginPassword" type="password" autocomplete="current-password" required /></label>
+      <button class="primary" type="submit">Sign In</button>
+      <p id="loginMessage" class="auth-message" aria-live="polite"></p>
+    </form>
+  </section>
+
+  <div id="appShell" hidden>
   <header class="topbar">
     <div>
       <p class="eyebrow">Nancy's Reselling Business</p>
@@ -301,7 +314,13 @@
         </div>
       </div>
 
-      <div class="settings-grid">\n        <article class="panel">\n          <h3>Cloud Connection</h3>\n          <p id="cloudStatusText">Checking Supabase connection…</p>\n          <div class="status-line"><span>Database</span><span id="cloudStatusPill" class="connection-pill">Checking</span></div>\n          <p class="item-meta" id="cloudAccount"></p>\n        </article>
+      <div class="settings-grid">
+        <article class="panel">
+          <h3>Cloud Connection</h3>
+          <p id="cloudStatusText">Checking Supabase connection…</p>
+          <div class="status-line"><span>Database</span><span id="cloudStatusPill" class="connection-pill">Checking</span></div>
+          <p class="item-meta" id="cloudAccount"></p>
+        </article>
         <article class="panel">
           <h3>Business Preferences</h3>
           <label>
@@ -575,7 +594,12 @@
     </form>
   </dialog>
 
-  <div id="toast" class="toast"></div>\n  </div>
-  <!-- Supabase browser client. The publishable key is designed to be public;\n       Row Level Security in Supabase protects the actual inventory data. -->\n  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>\n  <script src="supabase-config.js"></script>\n  <script src="app.js"></script>
+  <div id="toast" class="toast"></div>
+  </div>
+  <!-- Supabase browser client. The publishable key is designed to be public;
+       Row Level Security in Supabase protects the actual inventory data. -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="supabase-config.js"></script>
+  <script src="app.js"></script>
 </body>
 </html>
