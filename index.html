@@ -326,6 +326,42 @@
       </article>
       <div id="marketplaceCards" class="marketplace-grid"></div>
 
+      <article class="panel crosslist-readiness-panel">
+        <div class="panel-heading">
+          <div>
+            <p class="eyebrow">Cross-listing Prep</p>
+            <h3>Ready to publish</h3>
+          </div>
+          <span id="crosslistReadyCount" class="connection-pill">0 ready</span>
+        </div>
+        <p>Review master items before sending them to another marketplace. The Command Center checks the reusable listing content and shows exactly what still needs attention.</p>
+        <div class="filters crosslist-filters">
+          <input type="search" id="crosslistSearch" placeholder="Search master items..." />
+          <select id="crosslistMarketplace">
+            <option>Poshmark</option>
+            <option>Mercari</option>
+            <option>Vinted</option>
+            <option>Facebook Marketplace</option>
+            <option>Etsy</option>
+            <option>eBay</option>
+          </select>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Master Item</th>
+                <th>Destination</th>
+                <th>Readiness</th>
+                <th>Missing</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody id="crosslistReadinessTable"></tbody>
+          </table>
+        </div>
+      </article>
+
       <article class="panel sync-safety-panel">
         <div class="panel-heading">
           <div>
