@@ -811,6 +811,20 @@ function openItemDialog(id = "") {
   $("fees").value = item?.fees || "";
   $("shippingCost").value = item?.shippingCost || "";
   $("otherExpenses").value = item?.otherExpenses || "";
+  $("listingTitle").value = item?.listingTitle || item?.title || "";
+  $("listingDescription").value = item?.listingDescription || "";
+  $("conditionLabel").value = item?.conditionLabel || "";
+  $("conditionNotes").value = item?.conditionNotes || "";
+  $("measurements").value = item?.measurements || "";
+  $("weightOz").value = item?.weightOz ?? "";
+  $("packageLengthIn").value = item?.packageLengthIn ?? "";
+  $("packageWidthIn").value = item?.packageWidthIn ?? "";
+  $("packageHeightIn").value = item?.packageHeightIn ?? "";
+  $("imageUrls").value = (item?.imageUrls || []).join("\n");
+  $("targetPrice").value = item?.targetPrice ?? item?.listPrice ?? "";
+  $("minimumPrice").value = item?.minimumPrice ?? "";
+  $("masterSku").value = item?.masterSku || "";
+  $("listingTags").value = (item?.listingTags || []).join(", ");
   $("notes").value = item?.notes || "";
 
   renderMarketplaceChecks(item?.listedMarketplaces || [settings.defaultMarketplace]);
@@ -845,6 +859,20 @@ function readFormItem() {
     fees: Number($("fees").value || 0),
     shippingCost: Number($("shippingCost").value || 0),
     otherExpenses: Number($("otherExpenses").value || 0),
+    listingTitle: $("listingTitle").value.trim(),
+    listingDescription: $("listingDescription").value.trim(),
+    conditionLabel: $("conditionLabel").value.trim(),
+    conditionNotes: $("conditionNotes").value.trim(),
+    measurements: $("measurements").value.trim(),
+    weightOz: $("weightOz").value,
+    packageLengthIn: $("packageLengthIn").value,
+    packageWidthIn: $("packageWidthIn").value,
+    packageHeightIn: $("packageHeightIn").value,
+    imageUrls: $("imageUrls").value.split(/\r?\n/).map(value => value.trim()).filter(Boolean),
+    targetPrice: $("targetPrice").value,
+    minimumPrice: $("minimumPrice").value,
+    masterSku: $("masterSku").value.trim(),
+    listingTags: $("listingTags").value.split(",").map(value => value.trim()).filter(Boolean),
     notes: $("notes").value.trim()
   };
 }
