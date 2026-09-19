@@ -430,3 +430,41 @@ legend { font-weight: 800; padding: 0 6px; }
 .status-line { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin: 14px 0; }
 .connection-pill { display: inline-flex; align-items: center; border: 1px solid var(--line); border-radius: 999px; padding: 5px 10px; font-size: .85rem; font-weight: 800; color: var(--muted); background: var(--bg); }
 .connection-pill.ready { color: var(--accent-dark); background: var(--soft); border-color: var(--accent); }
+
+
+/* eBay integration workspace */
+.ebay-integration-panel { margin-bottom: 22px; }
+.integration-steps {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 10px;
+  margin: 20px 0;
+}
+.integration-step {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  color: var(--muted);
+  background: var(--bg);
+}
+.integration-step strong {
+  display: grid;
+  place-items: center;
+  flex: 0 0 28px;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  border: 1px solid var(--line);
+  background: var(--panel);
+  color: var(--ink);
+}
+.integration-step.complete { border-color: var(--accent); background: var(--soft); color: var(--accent-dark); }
+.integration-step.current { border-color: var(--accent); color: var(--ink); }
+.integration-actions { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
+.integration-actions button:disabled { cursor: not-allowed; opacity: .55; }
+@media (max-width: 980px) {
+  .integration-steps { grid-template-columns: 1fr; }
+}
