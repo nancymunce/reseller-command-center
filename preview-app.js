@@ -688,35 +688,63 @@ function downloadBlob(content, filename, type) {
   URL.revokeObjectURL(url);
 }
 
+async function importCloudItems(importedItems) {
+  if (!Array.isArray(importedItems) || importedItems.length === 0) return 0;
+
+  const normalized = importedItems.map(item => ({
+    ...item,
+    id: item.id || crypto.randomUUID()
+  }));
+
+  const payload = normalized.map(itemToDatabase);
+  const { error } = await supabaseClient
+    .from("inventory_items")
+    .upsert(payload, { onConflict: "id" });
+
+  if (error) throw error;
+  await loadCloudInventory();
+  return normalized.length;
+}
+
 async function importFile(file) {
   const text = await file.text();
+
   if (file.name.toLowerCase().endsWith(".json")) {
     const data = JSON.parse(text);
-    items = Array.isArray(data) ? data : data.items || [];
-    if (data.settings) settings = { ...settings, ...data.settings };
-    if (Array.isArray(data.opportunities)) opportunities = data.opportunities;
-    saveSettings();
-    localStorage.setItem(OPPORTUNITIES_KEY, JSON.stringify(opportunities));
-    saveItems();
-    toast("Backup imported");
+    const importedItems = Array.isArray(data) ? data : data.items || [];
+
+    if (data.settings) {
+      settings = { ...settings, ...data.settings };
+      saveSettings();
+    }
+    if (Array.isArray(data.opportunities)) {
+      opportunities = data.opportunities;
+      localStorage.setItem(OPPORTUNITIES_KEY, JSON.stringify(opportunities));
+      renderScout();
+    }
+
+    const count = await importCloudItems(importedItems);
+    toast(`${count} inventory items imported to cloud`);
     return;
   }
 
   const lines = text.split(/\\r?\\n/).filter(Boolean);
   if (lines.length < 2) throw new Error("CSV contains no rows.");
+
   const headers = parseCsvLine(lines[0]);
   const imported = lines.slice(1).map(line => {
     const values = parseCsvLine(line);
     const obj = {};
     headers.forEach((h, i) => obj[h] = values[i] ?? "");
-    ["purchaseCost","listPrice","salePrice","shippingCollected","fees","shippingCost","otherExpenses"].forEach(k => obj[k] = Number(obj[k] || 0));
+    ["purchaseCost","listPrice","salePrice","shippingCollected","fees","shippingCost","otherExpenses"]
+      .forEach(k => obj[k] = Number(obj[k] || 0));
     obj.listedMarketplaces = (obj.listedMarketplaces || "").split("|").filter(Boolean);
     obj.id = obj.id || crypto.randomUUID();
     return obj;
   });
-  items = [...items, ...imported];
-  saveItems();
-  toast(`${imported.length} items imported`);
+
+  const count = await importCloudItems(imported);
+  toast(`${count} items imported to cloud`);
 }
 
 function parseCsvLine(line) {
