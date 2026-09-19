@@ -94,3 +94,16 @@ Net ROI is estimated net profit divided by the Facebook asking price. The defaul
 ## Profit formula
 
 Net profit = sale price + shipping collected - purchase cost - marketplace fees - shipping cost - other expenses
+
+
+## Cloud inventory architecture
+
+The production-ready integration uses Supabase authentication and PostgreSQL inventory storage as the inventory source of truth.
+
+- Inventory reads, creates, edits, deletes, and imports use Supabase.
+- Row Level Security limits authenticated users to their own inventory rows.
+- The public browser configuration contains only the Supabase project URL and publishable key; privileged secrets must never be committed.
+- Settings and Marketplace Scout opportunities remain browser-local for now.
+- JSON/CSV exports remain available as user-controlled backups.
+- Legacy inventory localStorage is intentionally not deleted during migration so it can remain a safety backup until the cloud rollout is fully accepted.
+- Bulk cloud deletion is disabled; individual deletion remains available.
