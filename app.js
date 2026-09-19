@@ -146,7 +146,21 @@ function itemToDatabase(item) {
     fees: Number(item.fees || 0),
     shipping_cost: Number(item.shippingCost || 0),
     other_expenses: Number(item.otherExpenses || 0),
-    notes: item.notes || null
+    notes: item.notes || null,
+    listing_title: item.listingTitle || null,
+    listing_description: item.listingDescription || null,
+    condition_label: item.conditionLabel || null,
+    condition_notes: item.conditionNotes || null,
+    measurements: item.measurements || null,
+    weight_oz: item.weightOz === "" ? null : Number(item.weightOz || 0),
+    package_length_in: item.packageLengthIn === "" ? null : Number(item.packageLengthIn || 0),
+    package_width_in: item.packageWidthIn === "" ? null : Number(item.packageWidthIn || 0),
+    package_height_in: item.packageHeightIn === "" ? null : Number(item.packageHeightIn || 0),
+    image_urls: item.imageUrls || [],
+    target_price: item.targetPrice === "" ? null : Number(item.targetPrice || 0),
+    minimum_price: item.minimumPrice === "" ? null : Number(item.minimumPrice || 0),
+    master_sku: item.masterSku || null,
+    listing_tags: item.listingTags || []
   };
 }
 
@@ -159,7 +173,14 @@ function databaseToItem(row) {
     saleMarketplace: row.sale_marketplace || "", saleDate: row.sale_date || "",
     salePrice: Number(row.sale_price || 0), shippingCollected: Number(row.shipping_collected || 0),
     fees: Number(row.fees || 0), shippingCost: Number(row.shipping_cost || 0),
-    otherExpenses: Number(row.other_expenses || 0), notes: row.notes || ""
+    otherExpenses: Number(row.other_expenses || 0), notes: row.notes || "",
+    listingTitle: row.listing_title || "", listingDescription: row.listing_description || "",
+    conditionLabel: row.condition_label || "", conditionNotes: row.condition_notes || "",
+    measurements: row.measurements || "", weightOz: row.weight_oz ?? "",
+    packageLengthIn: row.package_length_in ?? "", packageWidthIn: row.package_width_in ?? "",
+    packageHeightIn: row.package_height_in ?? "", imageUrls: row.image_urls || [],
+    targetPrice: row.target_price ?? "", minimumPrice: row.minimum_price ?? "",
+    masterSku: row.master_sku || "", listingTags: row.listing_tags || []
   };
 }
 
