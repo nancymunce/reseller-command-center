@@ -325,6 +325,38 @@
         </div>
       </article>
       <div id="marketplaceCards" class="marketplace-grid"></div>
+
+      <article class="panel listing-review-panel">
+        <div class="panel-heading">
+          <div>
+            <p class="eyebrow">Imported Listings</p>
+            <h3>eBay Match Review</h3>
+          </div>
+          <span id="ebayImportedCount" class="connection-pill">0 imported</span>
+        </div>
+        <p>After eBay is connected, imported listings will appear here for review before they are linked to your master inventory records.</p>
+        <div class="listing-review-summary">
+          <div><strong id="ebayMatchedCount">0</strong><span>Linked</span></div>
+          <div><strong id="ebayUnmatchedCount">0</strong><span>Needs review</span></div>
+          <div><strong id="ebayLastSync">Not synced</strong><span>Last eBay sync</span></div>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>eBay Listing</th>
+                <th>Price</th>
+                <th>Status</th>
+                <th>Inventory Match</th>
+                <th>Last Sync</th>
+              </tr>
+            </thead>
+            <tbody id="ebayListingReviewTable">
+              <tr><td colspan="5" class="empty">No eBay listings imported yet. Nothing will appear here until your seller account is authorized.</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </article>
     </section>
 
     <section id="settings" class="view">
