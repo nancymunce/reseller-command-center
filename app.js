@@ -54,8 +54,22 @@ async function loadCloudInventory() {
     throw error;
   }
   items = (data || []).map(databaseToItem);
+  await loadMarketplaceListings();
   renderAll();
   await verifySupabaseAccess();
+}
+
+async function loadMarketplaceListings() {
+  const { data, error } = await supabaseClient
+    .from("marketplace_listings")
+    .select("*")
+    .order("last_synced_at", { ascending: false, nullsFirst: false });
+  if (error) {
+    console.warn("Marketplace listings could not be loaded:", error);
+    marketplaceListings = [];
+    return;
+  }
+  marketplaceListings = data || [];
 }
 
 async function saveCloudItem(item) {
@@ -179,6 +193,7 @@ const marketplaces = [
 // Inventory is loaded from Supabase after authentication.
 // Legacy browser inventory is deliberately left untouched as a rollback backup.
 let items = [];
+let marketplaceListings = [];
 let settings = loadSettings();
 let opportunities = loadOpportunities();
 
@@ -417,6 +432,43 @@ function renderMarketplaceCards() {
   });
 }
 
+function renderEbayListingReview() {
+  const ebay = marketplaceListings.filter(listing => listing.marketplace === "eBay");
+  const linked = ebay.filter(listing => listing.inventory_item_id);
+  const unlinked = ebay.filter(listing => !listing.inventory_item_id);
+  const latest = ebay.map(listing => listing.last_synced_at).filter(Boolean).sort().reverse()[0];
+
+  const count = $("ebayImportedCount");
+  const matched = $("ebayMatchedCount");
+  const unmatched = $("ebayUnmatchedCount");
+  const lastSync = $("ebayLastSync");
+  const table = $("ebayListingReviewTable");
+  if (!count || !matched || !unmatched || !lastSync || !table) return;
+
+  count.textContent = `${ebay.length} imported`;
+  matched.textContent = linked.length;
+  unmatched.textContent = unlinked.length;
+  lastSync.textContent = latest ? new Date(latest).toLocaleString() : "Not synced";
+
+  table.innerHTML = ebay.length ? ebay.map(listing => {
+    const inventory = listing.inventory_item_id
+      ? items.find(item => item.id === listing.inventory_item_id)
+      : null;
+    const match = inventory
+      ? escapeHtml(inventory.title)
+      : '<span class="review-needed">Needs review</span>';
+    return `
+      <tr>
+        <td><strong>${escapeHtml(listing.title || "Untitled eBay listing")}</strong><br><span class="item-meta">ID ${escapeHtml(listing.external_listing_id || "")}</span></td>
+        <td>${currency(listing.price)}</td>
+        <td>${escapeHtml(listing.status || "")}</td>
+        <td>${match}</td>
+        <td>${listing.last_synced_at ? new Date(listing.last_synced_at).toLocaleString() : "—"}</td>
+      </tr>
+    `;
+  }).join("") : '<tr><td colspan="5" class="empty">No eBay listings imported yet. Nothing will appear here until your seller account is authorized.</td></tr>';
+}
+
 function opportunityNumbers(opportunity) {
   const askingPrice = Number(opportunity.askingPrice || 0);
   const salePrice = Number(opportunity.estimatedSalePrice || 0);
@@ -603,6 +655,7 @@ function renderAll() {
   renderSales();
   renderScout();
   renderMarketplaceCards();
+  renderEbayListingReview();
   renderSettings();
 }
 
