@@ -3,12 +3,41 @@
 async function initializeAuthentication() {
   const { data: { session } } = await supabaseClient.auth.getSession();
   setAuthenticatedState(Boolean(session));
-  if (session) verifySupabaseAccess();
+  if (session) await loadCloudInventory();
 
   supabaseClient.auth.onAuthStateChange((_event, nextSession) => {
     setAuthenticatedState(Boolean(nextSession));
-    if (nextSession) verifySupabaseAccess();
+    if (nextSession) loadCloudInventory();
   });
+}
+
+async function loadCloudInventory() {
+  const { data, error } = await supabaseClient
+    .from("inventory_items")
+    .select("*")
+    .order("created_at", { ascending: false });
+  if (error) {
+    await verifySupabaseAccess();
+    throw error;
+  }
+  items = (data || []).map(databaseToItem);
+  renderAll();
+  await verifySupabaseAccess();
+}
+
+async function saveCloudItem(item) {
+  const { data, error } = await supabaseClient
+    .from("inventory_items")
+    .upsert(itemToDatabase(item), { onConflict: "id" })
+    .select()
+    .single();
+  if (error) throw error;
+  return databaseToItem(data);
+}
+
+async function deleteCloudItem(id) {
+  const { error } = await supabaseClient.from("inventory_items").delete().eq("id", id);
+  if (error) throw error;
 }
 
 function setAuthenticatedState(isAuthenticated) {
@@ -720,25 +749,37 @@ $("addItemBtn").addEventListener("click", () => openItemDialog());
 $("closeDialogBtn").addEventListener("click", () => $("itemDialog").close());
 $("cancelBtn").addEventListener("click", () => $("itemDialog").close());
 
-$("itemForm").addEventListener("submit", (event) => {
+$("itemForm").addEventListener("submit", async (event) => {
   event.preventDefault();
   const record = readFormItem();
   if (!record.title || !record.purchaseDate) return;
   const index = items.findIndex(i => i.id === record.id);
-  if (index >= 0) items[index] = record;
-  else items.unshift(record);
-  saveItems();
-  $("itemDialog").close();
-  toast(index >= 0 ? "Item updated" : "Item added");
+  try {
+    const saved = await saveCloudItem(record);
+    if (index >= 0) items[index] = saved;
+    else items.unshift(saved);
+    renderAll();
+    $("itemDialog").close();
+    toast(index >= 0 ? "Item updated in cloud" : "Item added to cloud");
+  } catch (error) {
+    console.error("Cloud save failed:", error);
+    alert("The item was not saved. Your existing inventory was not changed. " + error.message);
+  }
 });
 
-$("deleteItemBtn").addEventListener("click", () => {
+$("deleteItemBtn").addEventListener("click", async () => {
   const id = $("itemId").value;
   if (!id || !confirm("Delete this item permanently?")) return;
-  items = items.filter(i => i.id !== id);
-  saveItems();
-  $("itemDialog").close();
-  toast("Item deleted");
+  try {
+    await deleteCloudItem(id);
+    items = items.filter(i => i.id !== id);
+    renderAll();
+    $("itemDialog").close();
+    toast("Item deleted from cloud");
+  } catch (error) {
+    console.error("Cloud delete failed:", error);
+    alert("The item was not deleted. " + error.message);
+  }
 });
 
 $("inventorySearch").addEventListener("input", renderInventory);
@@ -828,14 +869,19 @@ $("importFile").addEventListener("change", async (event) => {
 });
 
 $("clearDataBtn").addEventListener("click", () => {
-  if (!confirm("Clear all inventory and sales data from this browser?")) return;
+  alert("Bulk cloud deletion is disabled for safety. Delete individual inventory items instead.");
+});
+
+$("signOutBtn")?.addEventListener("click", async () => {
+  await supabaseClient.auth.signOut();
   items = [];
-  saveItems();
-  toast("All data cleared");
+  renderAll();
+  toast("Signed out");
 });
 
 renderMarketplaceChecks();
 renderAll();
+initializeAuthentication();
 const initialView = location.hash.slice(1);
 if (document.getElementById(initialView)?.classList.contains("view")) showView(initialView);
 if (initialView === "sourcing") setTimeout(requestScoutData, 300);
