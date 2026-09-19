@@ -165,11 +165,6 @@ function loadSettings() {
   try { return { ...defaults, ...JSON.parse(stored) }; } catch { return defaults; }
 }
 
-function saveItems() {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(items));
-  renderAll();
-}
-
 function saveSettings() {
   localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings));
 }
