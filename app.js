@@ -120,6 +120,61 @@ async function queueSaleProtectionActions(item) {
   }
 }
 
+function crosslistReadiness(item, marketplace) {
+  const required = [
+    ["listingTitle", "title"],
+    ["listingDescription", "description"],
+    ["conditionLabel", "condition"],
+    ["imageUrls", "photos"],
+    ["targetPrice", "price"]
+  ];
+
+  if (marketplace !== "Facebook Marketplace") {
+    required.push(["weightOz", "shipping weight"]);
+  }
+  if (["eBay", "Mercari"].includes(marketplace)) {
+    required.push(["packageLengthIn", "package length"]);
+    required.push(["packageWidthIn", "package width"]);
+    required.push(["packageHeightIn", "package height"]);
+  }
+
+  const missing = required
+    .filter(([key]) => Array.isArray(item[key]) ? item[key].length === 0 : !item[key])
+    .map(([, label]) => label);
+
+  const score = Math.round(((required.length - missing.length) / required.length) * 100);
+  return { score, missing, ready: missing.length === 0 };
+}
+
+function renderCrosslistReadiness() {
+  const table = $("crosslistReadinessTable");
+  const count = $("crosslistReadyCount");
+  const marketSelect = $("crosslistMarketplace");
+  if (!table || !count || !marketSelect) return;
+
+  const marketplace = marketSelect.value;
+  const search = ($("crosslistSearch")?.value || "").toLowerCase().trim();
+  const candidates = items.filter(item => item.status !== "Sold" &&
+    (!search || [item.title, item.listingTitle, item.brand, item.category].join(" ").toLowerCase().includes(search))
+  );
+  const rows = candidates.map(item => ({ item, readiness: crosslistReadiness(item, marketplace) }));
+  count.textContent = `${rows.filter(row => row.readiness.ready).length} ready`;
+
+  table.innerHTML = rows.length ? rows.map(({ item, readiness }) => `
+    <tr>
+      <td><strong>${escapeHtml(item.listingTitle || item.title)}</strong><br><span class="item-meta">${escapeHtml(item.masterSku || item.category || "")}</span></td>
+      <td>${escapeHtml(marketplace)}</td>
+      <td><span class="badge ${readiness.ready ? "ready" : ""}">${readiness.ready ? "Ready" : `${readiness.score}%`}</span></td>
+      <td>${readiness.missing.length ? escapeHtml(readiness.missing.join(", ")) : "Nothing"}</td>
+      <td><button class="text-button edit-crosslist-item" data-id="${item.id}" type="button">${readiness.ready ? "Review" : "Complete"}</button></td>
+    </tr>
+  `).join("") : '<tr><td colspan="5" class="empty">No active master items match this view.</td></tr>';
+
+  document.querySelectorAll(".edit-crosslist-item").forEach(button => {
+    button.addEventListener("click", () => openItemDialog(button.dataset.id));
+  });
+}
+
 function renderMarketplaceSyncActions() {
   const container = $("syncActionList");
   const count = $("syncActionCount");
@@ -937,6 +992,7 @@ function renderAll() {
   renderMarketplaceCards();
   renderEbayListingReview();
   renderMarketplaceSyncActions();
+  renderCrosslistReadiness();
   renderSettings();
 }
 
@@ -1195,6 +1251,9 @@ $("deleteItemBtn").addEventListener("click", async () => {
     alert("The item was not deleted. " + error.message);
   }
 });
+
+$("crosslistSearch").addEventListener("input", renderCrosslistReadiness);
+$("crosslistMarketplace").addEventListener("change", renderCrosslistReadiness);
 
 $("inventorySearch").addEventListener("input", renderInventory);
 $("statusFilter").addEventListener("change", renderInventory);
