@@ -490,3 +490,7 @@ legend { font-weight: 800; padding: 0 6px; }
 @media (max-width: 700px) {
   .listing-review-summary { grid-template-columns: 1fr; }
 }
+
+.match-actions { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.match-actions button { white-space: nowrap; }
+.match-confirmed { font-weight: 800; color: var(--accent-dark); }
