@@ -1,13 +1,46 @@
 // Supabase authentication protects the cloud-backed version of the app.
 // Supabase is the inventory source of truth. localStorage remains untouched as a safety backup during rollout.
 async function initializeAuthentication() {
-  const { data: { session } } = await supabaseClient.auth.getSession();
-  setAuthenticatedState(Boolean(session));
-  if (session) await loadCloudInventory();
+  const { data: { session }, error } = await supabaseClient.auth.getSession();
+  if (error) throw error;
 
-  supabaseClient.auth.onAuthStateChange((_event, nextSession) => {
-    setAuthenticatedState(Boolean(nextSession));
-    if (nextSession) loadCloudInventory();
+  if (session) {
+    try {
+      await loadCloudInventory();
+      setAuthenticatedState(true);
+    } catch (error) {
+      console.error("Cloud inventory load failed:", error);
+      items = [];
+      renderAll();
+      setAuthenticatedState(false);
+      setLoginMessage("Signed in, but cloud inventory could not be loaded. Refresh and try again.", true);
+    }
+  } else {
+    setAuthenticatedState(false);
+  }
+
+  supabaseClient.auth.onAuthStateChange((event, nextSession) => {
+    if (!nextSession) {
+      items = [];
+      renderAll();
+      setAuthenticatedState(false);
+      return;
+    }
+
+    if (event === "SIGNED_IN") {
+      loadCloudInventory()
+        .then(() => {
+          setAuthenticatedState(true);
+          setLoginMessage("");
+        })
+        .catch(error => {
+          console.error("Cloud inventory load failed after sign-in:", error);
+          items = [];
+          renderAll();
+          setAuthenticatedState(false);
+          setLoginMessage("Signed in, but cloud inventory could not be loaded. Refresh and try again.", true);
+        });
+    }
   });
 }
 
@@ -45,6 +78,13 @@ function setAuthenticatedState(isAuthenticated) {
   const shell = document.getElementById("appShell");
   if (gate) gate.hidden = isAuthenticated;
   if (shell) shell.hidden = !isAuthenticated;
+}
+
+function setLoginMessage(message, isError = false) {
+  const element = document.getElementById("loginMessage");
+  if (!element) return;
+  element.textContent = message;
+  element.classList.toggle("error", Boolean(isError));
 }
 async function verifySupabaseAccess() {
   const pill = document.getElementById("cloudStatusPill");
