@@ -513,3 +513,12 @@ legend { font-weight: 800; padding: 0 6px; }
 @media (max-width: 700px) {
   .sync-action-row { align-items: flex-start; flex-direction: column; }
 }
+
+.crosslist-readiness-panel { margin-top: 22px; }
+.crosslist-filters { margin: 16px 0; }
+.crosslist-readiness-panel .badge.ready { font-weight: 800; }
+.form-section-heading {
+  padding-top: 12px;
+  border-top: 1px solid var(--line);
+}
+.form-section-heading h3 { margin: 2px 0 4px; }
