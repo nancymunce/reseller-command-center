@@ -47,7 +47,7 @@ const slots=[["activeFile","activeFileName","active"],["soldFile","soldFileName"
 function updateReady(){let ready=true;for(const [inputId,nameId] of slots){const file=$(inputId).files[0];$(nameId).textContent=file?file.name:"No file selected";if(!file)ready=false}$("analyzeBtn").disabled=!ready;$("readyText").textContent=ready?"All three files selected. Ready to analyze.":"Select all three files to continue."}
 slots.forEach(([inputId])=>$(inputId).addEventListener("change",updateReady));
 $("analyzeBtn").addEventListener("click",async()=>{$("readyText").textContent="Analyzing reports…";records=[];const warnings=[];for(const [inputId,,expected] of slots){const file=$(inputId).files[0];const rows=csvRows(await file.text()),d=detect(rows);if(!d){warnings.push(file.name+": report type not recognized.");continue}if(d.type!==expected)warnings.push(file.name+": expected "+expected+" report but detected "+d.type+".");objects(rows,d.header).forEach((o,i)=>{const n=normalize(d.type,o,i);if(d.type==="sold"&&!n.id&&!n.title&&n.price===0)return;records.push(n)})}render(3,warnings);$("resultsPanel").scrollIntoView({behavior:"smooth",block:"start"});});
-loadCloudReference().catch(e=>{$("cloudReference").textContent=e.message;$("cloudReference").classList.add("import-note")})
+window.addEventListener("error",e=>{const el=$("readyText");if(el)el.textContent="Page error: "+e.message;});\nloadCloudReference().catch(e=>{$("cloudReference").textContent=e.message;$("cloudReference").classList.add("import-note")})
 
 async function createMaster(r){
  const sold=r.source==="Order",draft=r.source==="Draft";
