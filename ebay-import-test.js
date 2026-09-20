@@ -11,14 +11,14 @@ function normalize(type,o,index){
 }
 let records=[],inventory=[],existingListings=[];
 const stop=new Set(["the","a","an","and","or","with","of","for","to","in","on","vintage","set","lot","new","used"]);
-function tokens(s){return new Set(String(s||"").toLowerCase().replace(/[^a-z0-9]+/g," ").split(/\s+/).filter(x=>x.length>1&&!stop.has(x)))}
+function tokens(s){const aliases={three:"3",aqua:"turquoise",mugs:"mug",cups:"cup",glasses:"glass"};return new Set(String(s||"").toLowerCase().replace(/[^a-z0-9]+/g," ").split(/\s+/).map(x=>aliases[x]||x.replace(/s$/,"")).filter(x=>x.length>1&&!stop.has(x)))}
 function similarity(a,b){const A=tokens(a),B=tokens(b);if(!A.size||!B.size)return 0;let hit=0;A.forEach(x=>{if(B.has(x))hit++});const j=hit/(A.size+B.size-hit),contain=hit/Math.min(A.size,B.size);return Math.round(100*(0.45*j+0.55*contain))}
-function bestInventoryMatch(r){let best=null;for(const item of inventory){const names=[item.listing_title,item.title].filter(Boolean);const titleScore=Math.max(0,...names.map(n=>similarity(r.title,n)));const itemPrices=[item.sale_price,item.list_price,item.target_price].map(Number).filter(Number.isFinite);const priceMatch=r.price&&itemPrices.some(p=>Math.abs(p-r.price)<0.01);let adjusted=titleScore+(priceMatch?12:0);if(titleScore>=60&&priceMatch)adjusted+=8;if(titleScore>=85)adjusted+=8;adjusted=Math.min(100,adjusted);if(!best||adjusted>best.score)best={item,score:adjusted,titleScore,priceMatch}}return best}
+function bestInventoryMatch(r){let best=null;for(const item of inventory){const names=[item.listing_title,item.title].filter(Boolean);const titleScore=Math.max(0,...names.map(n=>similarity(r.title,n)));const itemPrices=[item.sale_price,item.list_price,item.target_price].map(Number).filter(Number.isFinite);const priceDelta=itemPrices.length?Math.min(...itemPrices.map(p=>Math.abs(p-r.price))):Infinity;const priceMatch=r.price&&priceDelta<0.01,nearPrice=r.price&&priceDelta<=0.25;let adjusted=titleScore+(priceMatch?12:nearPrice?7:0);if(titleScore>=60&&(priceMatch||nearPrice))adjusted+=8;if(titleScore>=85)adjusted+=8;adjusted=Math.min(100,adjusted);if(!best||adjusted>best.score)best={item,score:adjusted,titleScore,priceMatch}}return best}
 function reconcile(){
  const byExternal=new Map(existingListings.map(x=>[String(x.external_listing_id||""),x]));
  records=records.map(r=>{if(r.source!=="Draft"&&r.id&&byExternal.has(String(r.id)))return {...r,reconcile:"Already imported",match:"eBay ID",confidence:100};
- const best=bestInventoryMatch(r);if(best&&best.score>=78)return {...r,reconcile:"Likely existing master item",match:best.item.title,confidence:best.score};
- if(best&&best.score>=45)return {...r,reconcile:"Needs review",match:best.item.title,confidence:best.score};
+ const best=bestInventoryMatch(r);if(best&&best.score>=72)return {...r,reconcile:"Likely existing master item",match:best.item.title,confidence:best.score};
+ if(best&&best.score>=35)return {...r,reconcile:"Needs review",match:best.item.title,confidence:best.score};
  return {...r,reconcile:r.source==="Draft"?"New master-item candidate":"No confident master match",match:"—",confidence:0};});
 }
 async function loadCloudReference(){
@@ -43,5 +43,5 @@ function render(files,warnings){reconcile();$("resultsPanel").hidden=false;$("re
 const slots=[["activeFile","activeFileName","active"],["soldFile","soldFileName","sold"],["draftFile","draftFileName","draft"]];
 function updateReady(){let ready=true;for(const [inputId,nameId] of slots){const file=$(inputId).files[0];$(nameId).textContent=file?file.name:"No file selected";if(!file)ready=false}$("analyzeBtn").disabled=!ready;$("readyText").textContent=ready?"All three files selected. Ready to analyze.":"Select all three files to continue."}
 slots.forEach(([inputId])=>$(inputId).addEventListener("change",updateReady));
-$("analyzeBtn").addEventListener("click",async()=>{records=[];const warnings=[];for(const [inputId,,expected] of slots){const file=$(inputId).files[0];const rows=csvRows(await file.text()),d=detect(rows);if(!d){warnings.push(file.name+": report type not recognized.");continue}if(d.type!==expected)warnings.push(file.name+": expected "+expected+" report but detected "+d.type+".");objects(rows,d.header).forEach((o,i)=>records.push(normalize(d.type,o,i)))}render(3,warnings);$("resultsPanel").scrollIntoView({behavior:"smooth",block:"start"});});
+$("analyzeBtn").addEventListener("click",async()=>{records=[];const warnings=[];for(const [inputId,,expected] of slots){const file=$(inputId).files[0];const rows=csvRows(await file.text()),d=detect(rows);if(!d){warnings.push(file.name+": report type not recognized.");continue}if(d.type!==expected)warnings.push(file.name+": expected "+expected+" report but detected "+d.type+".");objects(rows,d.header).forEach((o,i)=>{const n=normalize(d.type,o,i);if(d.type==="sold"&&!n.id&&!n.title&&n.price===0)return;records.push(n)})}render(3,warnings);$("resultsPanel").scrollIntoView({behavior:"smooth",block:"start"});});
 loadCloudReference().catch(e=>{$("cloudReference").textContent=e.message;$("cloudReference").classList.add("import-note")})
