@@ -40,7 +40,8 @@ function render(files,warnings){reconcile();$("resultsPanel").hidden=false;$("re
  $("diagnostics").innerHTML="<div class=\"import-note\"><strong>Diagnostics: matches + all sold/order rows</strong>"+(diag||"<p>None</p>")+"</div>";
  const groups=[["Existing master-item matches",records.filter(r=>r.reconcile==="Likely existing master item"||r.reconcile==="Already imported"),"Link/update listing only"],["Active listings needing new master items",active.filter(r=>r.reconcile==="No confident master match"),"Create master item + eBay listing record"],["Sold items not yet in Command Center",sold.filter(r=>r.reconcile==="No confident master match"),"Create historical sold master item + listing record"],["Items needing human review",records.filter(r=>r.reconcile==="Needs review"),"Choose link or create"],["eBay drafts",draft.filter(r=>r.reconcile==="New master-item candidate"),"Create editable master-item candidate"]];
  $("reviewGroups").innerHTML=groups.map(g=>"<div class=\"import-note\" style=\"margin:10px 0\"><strong>"+esc(g[0])+" — "+g[1].length+"</strong><div class=\"privacy-note\">Proposed action: "+esc(g[2])+"</div>"+(g[1].length?"<ul>"+g[1].slice(0,12).map(r=>"<li>"+esc(r.title)+(r.match&&r.match!==\"—\"?" → "+esc(r.match):"")+"</li>").join("")+(g[1].length>12?"<li>…and "+(g[1].length-12)+" more</li>":"")+"</ul>":"<p class=\"privacy-note\">None</p>")+"</div>").join("");
- $("importBtn").disabled=false;$("importStatus").textContent="Dry run complete. Review the groups above, then choose Import Approved Records.";\n $("previewRows").innerHTML=records.map(r=>'<tr><td>'+esc(r.source)+'</td><td>'+esc(r.id)+'</td><td>'+esc(r.title)+'</td><td>'+esc(r.status)+'</td><td>$'+r.price.toFixed(2)+'</td><td>'+esc(r.reconcile)+'</td><td>'+esc(r.match)+(r.confidence?' ('+r.confidence+'%)':'')+'</td></tr>').join("");
+ $("importBtn").disabled=false;$("importStatus").textContent="Dry run complete. Review the groups above, then choose Import Approved Records.";
+ $("previewRows").innerHTML=records.map(r=>'<tr><td>'+esc(r.source)+'</td><td>'+esc(r.id)+'</td><td>'+esc(r.title)+'</td><td>'+esc(r.status)+'</td><td>$'+r.price.toFixed(2)+'</td><td>'+esc(r.reconcile)+'</td><td>'+esc(r.match)+(r.confidence?' ('+r.confidence+'%)':'')+'</td></tr>').join("");
 }
 const slots=[["activeFile","activeFileName","active"],["soldFile","soldFileName","sold"],["draftFile","draftFileName","draft"]];
 function updateReady(){let ready=true;for(const [inputId,nameId] of slots){const file=$(inputId).files[0];$(nameId).textContent=file?file.name:"No file selected";if(!file)ready=false}$("analyzeBtn").disabled=!ready;$("readyText").textContent=ready?"All three files selected. Ready to analyze.":"Select all three files to continue."}
@@ -48,4 +49,31 @@ slots.forEach(([inputId])=>$(inputId).addEventListener("change",updateReady));
 $("analyzeBtn").addEventListener("click",async()=>{records=[];const warnings=[];for(const [inputId,,expected] of slots){const file=$(inputId).files[0];const rows=csvRows(await file.text()),d=detect(rows);if(!d){warnings.push(file.name+": report type not recognized.");continue}if(d.type!==expected)warnings.push(file.name+": expected "+expected+" report but detected "+d.type+".");objects(rows,d.header).forEach((o,i)=>{const n=normalize(d.type,o,i);if(d.type==="sold"&&!n.id&&!n.title&&n.price===0)return;records.push(n)})}render(3,warnings);$("resultsPanel").scrollIntoView({behavior:"smooth",block:"start"});});
 loadCloudReference().catch(e=>{$("cloudReference").textContent=e.message;$("cloudReference").classList.add("import-note")})
 
-$("importBtn").addEventListener("click",()=>{const active=records.filter(r=>r.source==="Active"),sold=records.filter(r=>r.source==="Order"),draft=records.filter(r=>r.source==="Draft");const matched=records.filter(r=>r.reconcile==="Likely existing master item"||r.reconcile==="Already imported").length;const msg="FINAL IMPORT CHECK\n\nThis will write to your real Supabase database.\n\n"+active.length+" active eBay rows\n"+sold.length+" sold rows\n"+draft.length+" draft candidates\n"+matched+" existing matches\n\nNo buyer PII will be stored. No listing will be posted, revised, or ended on eBay.\n\nChoose OK only if these counts match the review above.";if(!window.confirm(msg))return;$("importStatus").textContent="Approved, but database writer is not enabled yet. No records were changed.";});
+async function createMaster(r){
+ const sold=r.source==="Order",draft=r.source==="Draft";
+ const payload={title:r.title||"Untitled eBay item",listing_title:r.title||null,purchase_cost:0,purchase_date:new Date().toISOString().slice(0,10),source:draft?"Imported from eBay Draft":"Imported from eBay",status:sold?"Sold":draft?"Unlisted":"Listed",list_price:!sold&&!draft?r.price:null,target_price:draft&&r.price?r.price:null,sale_marketplace:sold?"eBay":null,sale_price:sold?r.price:null,sale_date:sold?(r.rawSafe.saleDate||null):null,listed_marketplaces:draft?[]:["eBay"],master_sku:r.sku||null,condition_label:r.rawSafe.condition||null,listing_description:draft?(r.rawSafe.description||null):null,notes:draft?(r.rawSafe.notes||null):null};
+ const {data,error}=await supabaseClient.from("inventory_items").insert(payload).select("id").single();if(error)throw error;return data.id;
+}
+async function upsertListing(r,itemId){
+ if(r.source==="Draft")return;
+ const payload={marketplace:"eBay",external_listing_id:String(r.id),external_sku:r.sku||null,title:r.title||null,status:r.source==="Order"?"sold":"active",quantity:Number(r.rawSafe.quantity)||1,price:r.price||null,currency:"USD",inventory_item_id:itemId||null,raw_data:r.rawSafe,last_synced_at:new Date().toISOString()};
+ const {error}=await supabaseClient.from("marketplace_listings").upsert(payload,{onConflict:"owner_id,marketplace,external_listing_id"});if(error)throw error;
+}
+$("importBtn").addEventListener("click",async()=>{
+ const active=records.filter(r=>r.source==="Active"),sold=records.filter(r=>r.source==="Order"),draft=records.filter(r=>r.source==="Draft"),matched=records.filter(r=>r.reconcile==="Likely existing master item"||r.reconcile==="Already imported").length;
+ const msg="FINAL IMPORT CHECK\n\nThis will write to your real Supabase database.\n\n"+active.length+" active eBay rows\n"+sold.length+" sold rows\n"+draft.length+" draft candidates\n"+matched+" existing matches\n\nNo buyer PII will be stored. No listing will be posted, revised, or ended on eBay.\n\nChoose OK only if these counts match the review above.";
+ if(!window.confirm(msg))return;
+ $("importBtn").disabled=true;$("importStatus").textContent="Importing…";
+ let created=0,linked=0,listings=0,skipped=0,failed=[];
+ for(const r of records){try{
+   if(r.reconcile==="Needs review"){skipped++;continue}
+   let itemId=null;
+   if(r.reconcile==="Likely existing master item"){const best=bestInventoryMatch(r);itemId=best&&best.item.id;if(!itemId){skipped++;continue}linked++}
+   else if(r.reconcile==="Already imported"){const ex=existingListings.find(x=>String(x.external_listing_id)===String(r.id));itemId=ex&&ex.inventory_item_id;linked++}
+   else {itemId=await createMaster(r);created++}
+   if(r.source!=="Draft"){await upsertListing(r,itemId);listings++}
+ }catch(e){failed.push((r.title||r.id)+": "+e.message)}}
+ $("importStatus").textContent="Import finished: "+created+" master items created, "+linked+" existing items linked, "+listings+" eBay listing records upserted, "+skipped+" held for review, "+failed.length+" failed.";
+ if(failed.length)$("warnings").innerHTML+='<p class="import-note"><strong>Import errors:</strong><br>'+failed.map(esc).join("<br>")+"</p>";
+ await loadCloudReference();
+});
