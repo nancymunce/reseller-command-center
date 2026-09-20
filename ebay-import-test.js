@@ -34,7 +34,7 @@ function render(files,warnings){reconcile();$("resultsPanel").hidden=false;$("re
  $("itemIdCount").textContent=new Set(records.filter(x=>!x.id.startsWith("Draft ")).map(x=>x.id).filter(Boolean)).size;
  $("matchedCount").textContent=records.filter(x=>x.reconcile==="Already imported"||x.reconcile==="Likely existing master item").length;
  $("reviewCount").textContent=records.filter(x=>x.reconcile==="Needs review").length;
- $("newCount").textContent=records.filter(x=>x.reconcile==="New master-item candidate"||x.reconcile==="No confident master match").length;
+ $("unmatchedActiveCount").textContent=active.filter(x=>x.reconcile==="No confident master match").length;$("unmatchedSoldCount").textContent=sold.filter(x=>x.reconcile==="No confident master match").length;$("newCount").textContent=draft.filter(x=>x.reconcile==="New master-item candidate").length;
  $("warnings").innerHTML=warnings.length?'<p class="import-note">'+warnings.map(esc).join("<br>")+"</p>":"";
  const diag=records.filter(r=>r.source==="Order"||r.reconcile==="Likely existing master item"||r.reconcile==="Already imported").map(r=>"<p><strong>"+esc(r.source)+"</strong> — "+esc(r.title)+" — $"+r.price.toFixed(2)+" — "+esc(r.reconcile)+" — best: "+esc(r.match)+(r.confidence?" ("+r.confidence+"%)":"")+"</p>").join("");
  $("diagnostics").innerHTML="<div class=\"import-note\"><strong>Diagnostics: matches + all sold/order rows</strong>"+(diag||"<p>None</p>")+"</div>";
