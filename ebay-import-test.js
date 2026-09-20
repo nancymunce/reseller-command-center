@@ -1,4 +1,4 @@
-const supabaseClient = window.supabase.createClient("https://desygsdzinuvofjufvft.supabase.co","sb_publishable_iw1n9EupBt8qFZUNrvPrBA_UEnA8bqn");
+let supabaseClient=null;function getSupabase(){if(supabaseClient)return supabaseClient;if(!window.supabase)throw new Error("Supabase library did not load. Refresh the page and try again.");supabaseClient=window.supabase.createClient("https://desygsdzinuvofjufvft.supabase.co","sb_publishable_iw1n9EupBt8qFZUNrvPrBA_UEnA8bqn");return supabaseClient;}
 const $=id=>document.getElementById(id);
 function money(v){const n=Number(String(v??"").replace(/[$,]/g,""));return Number.isFinite(n)?n:0}
 function csvRows(text){const rows=[];let row=[],cell="",q=false;for(let i=0;i<text.length;i++){const c=text[i],n=text[i+1];if(c==='"'&&q&&n==='"'){cell+='"';i++;}else if(c==='"'){q=!q;}else if(c===','&&!q){row.push(cell);cell="";}else if((c==='\n'||c==='\r')&&!q){if(c==='\r'&&n==='\n')i++;row.push(cell);if(row.some(x=>x!==""))rows.push(row);row=[];cell="";}else cell+=c;}row.push(cell);if(row.some(x=>x!==""))rows.push(row);return rows}
@@ -22,8 +22,8 @@ function reconcile(){
  return {...r,reconcile:r.source==="Draft"?"New master-item candidate":"No confident master match",match:"—",confidence:0};});
 }
 async function loadCloudReference(){
- const {data:{session}}=await supabaseClient.auth.getSession();if(!session)throw new Error("Sign in to the Command Center first, then reopen this page.");
- const [i,l]=await Promise.all([supabaseClient.from("inventory_items").select("id,title,listing_title,master_sku,status,list_price,target_price,sale_price"),supabaseClient.from("marketplace_listings").select("id,external_listing_id,inventory_item_id,status").eq("marketplace","eBay")]);
+ const client=getSupabase();const {data:{session}}=await client.auth.getSession();if(!session)throw new Error("Sign in to the Command Center first, then reopen this page.");
+ const [i,l]=await Promise.all([client.from("inventory_items").select("id,title,listing_title,master_sku,status,list_price,target_price,sale_price"),client.from("marketplace_listings").select("id,external_listing_id,inventory_item_id,status").eq("marketplace","eBay")]);
  if(i.error)throw i.error;if(l.error)throw l.error;inventory=i.data||[];existingListings=l.data||[];
  $("cloudReference").textContent=inventory.length+" master items · "+existingListings.length+" eBay listing records";
 }
@@ -46,18 +46,18 @@ function render(files,warnings){reconcile();$("resultsPanel").hidden=false;$("re
 const slots=[["activeFile","activeFileName","active"],["soldFile","soldFileName","sold"],["draftFile","draftFileName","draft"]];
 function updateReady(){let ready=true;for(const [inputId,nameId] of slots){const file=$(inputId).files[0];$(nameId).textContent=file?file.name:"No file selected";if(!file)ready=false}$("analyzeBtn").disabled=!ready;$("readyText").textContent=ready?"All three files selected. Ready to analyze.":"Select all three files to continue."}
 slots.forEach(([inputId])=>$(inputId).addEventListener("change",updateReady));
-$("analyzeBtn").addEventListener("click",async()=>{records=[];const warnings=[];for(const [inputId,,expected] of slots){const file=$(inputId).files[0];const rows=csvRows(await file.text()),d=detect(rows);if(!d){warnings.push(file.name+": report type not recognized.");continue}if(d.type!==expected)warnings.push(file.name+": expected "+expected+" report but detected "+d.type+".");objects(rows,d.header).forEach((o,i)=>{const n=normalize(d.type,o,i);if(d.type==="sold"&&!n.id&&!n.title&&n.price===0)return;records.push(n)})}render(3,warnings);$("resultsPanel").scrollIntoView({behavior:"smooth",block:"start"});});
+$("analyzeBtn").addEventListener("click",async()=>{$("readyText").textContent="Analyzing reports…";records=[];const warnings=[];for(const [inputId,,expected] of slots){const file=$(inputId).files[0];const rows=csvRows(await file.text()),d=detect(rows);if(!d){warnings.push(file.name+": report type not recognized.");continue}if(d.type!==expected)warnings.push(file.name+": expected "+expected+" report but detected "+d.type+".");objects(rows,d.header).forEach((o,i)=>{const n=normalize(d.type,o,i);if(d.type==="sold"&&!n.id&&!n.title&&n.price===0)return;records.push(n)})}render(3,warnings);$("resultsPanel").scrollIntoView({behavior:"smooth",block:"start"});});
 loadCloudReference().catch(e=>{$("cloudReference").textContent=e.message;$("cloudReference").classList.add("import-note")})
 
 async function createMaster(r){
  const sold=r.source==="Order",draft=r.source==="Draft";
  const payload={title:r.title||"Untitled eBay item",listing_title:r.title||null,purchase_cost:0,purchase_date:new Date().toISOString().slice(0,10),source:draft?"Imported from eBay Draft":"Imported from eBay",status:sold?"Sold":draft?"Unlisted":"Listed",list_price:!sold&&!draft?r.price:null,target_price:draft&&r.price?r.price:null,sale_marketplace:sold?"eBay":null,sale_price:sold?r.price:null,sale_date:sold?(r.rawSafe.saleDate||null):null,listed_marketplaces:draft?[]:["eBay"],master_sku:r.sku||null,condition_label:r.rawSafe.condition||null,listing_description:draft?(r.rawSafe.description||null):null,notes:draft?(r.rawSafe.notes||null):null};
- const {data,error}=await supabaseClient.from("inventory_items").insert(payload).select("id").single();if(error)throw error;return data.id;
+ const {data,error}=await getSupabase().from("inventory_items").insert(payload).select("id").single();if(error)throw error;return data.id;
 }
 async function upsertListing(r,itemId){
  if(r.source==="Draft")return;
  const payload={marketplace:"eBay",external_listing_id:String(r.id),external_sku:r.sku||null,title:r.title||null,status:r.source==="Order"?"sold":"active",quantity:Number(r.rawSafe.quantity)||1,price:r.price||null,currency:"USD",inventory_item_id:itemId||null,raw_data:r.rawSafe,last_synced_at:new Date().toISOString()};
- const {error}=await supabaseClient.from("marketplace_listings").upsert(payload,{onConflict:"owner_id,marketplace,external_listing_id"});if(error)throw error;
+ const {error}=await getSupabase().from("marketplace_listings").upsert(payload,{onConflict:"owner_id,marketplace,external_listing_id"});if(error)throw error;
 }
 $("importBtn").addEventListener("click",async()=>{
  const active=records.filter(r=>r.source==="Active"),sold=records.filter(r=>r.source==="Order"),draft=records.filter(r=>r.source==="Draft"),matched=records.filter(r=>r.reconcile==="Likely existing master item"||r.reconcile==="Already imported").length;
