@@ -13,7 +13,7 @@ let records=[],inventory=[],existingListings=[];
 const stop=new Set(["the","a","an","and","or","with","of","for","to","in","on","vintage","set"]);
 function tokens(s){return new Set(String(s||"").toLowerCase().replace(/[^a-z0-9]+/g," ").split(/\s+/).filter(x=>x.length>1&&!stop.has(x)))}
 function similarity(a,b){const A=tokens(a),B=tokens(b);if(!A.size||!B.size)return 0;let hit=0;A.forEach(x=>{if(B.has(x))hit++});return Math.round(100*hit/(A.size+B.size-hit))}
-function bestInventoryMatch(r){let best=null;for(const item of inventory){const score=similarity(r.title,item.listing_title||item.title);const priceMatch=r.price&&Number(item.sale_price||item.list_price||item.target_price||0)===r.price;const adjusted=Math.min(100,score+(priceMatch?8:0));if(!best||adjusted>best.score)best={item,score:adjusted}}return best}
+function bestInventoryMatch(r){let best=null;for(const item of inventory){const names=[item.listing_title,item.title].filter(Boolean);const titleScore=Math.max(0,...names.map(n=>similarity(r.title,n)));const itemPrices=[item.sale_price,item.list_price,item.target_price].map(Number).filter(Number.isFinite);const priceMatch=r.price&&itemPrices.some(p=>Math.abs(p-r.price)<0.01);let adjusted=titleScore+(priceMatch?12:0);if(titleScore>=60&&priceMatch)adjusted+=8;if(titleScore>=85)adjusted+=8;adjusted=Math.min(100,adjusted);if(!best||adjusted>best.score)best={item,score:adjusted,titleScore,priceMatch}}return best}
 function reconcile(){
  const byExternal=new Map(existingListings.map(x=>[String(x.external_listing_id||""),x]));
  records=records.map(r=>{if(r.source!=="Draft"&&r.id&&byExternal.has(String(r.id)))return {...r,reconcile:"Already imported",match:"eBay ID",confidence:100};
