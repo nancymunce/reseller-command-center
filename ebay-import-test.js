@@ -10,9 +10,9 @@ function normalize(type,o,index){
  return {source:"Draft",id:"Draft "+(index+1),title:o.Title,status:"Draft",price:money(o["Price (USD)"]),sku:"",action:"Master-item candidate; review first",rawSafe:{category:o.Category,condition:o.Condition,quantity:o.Quantity,format:o.Format,lastModified:o["Last Modified"],description:o.Description,notes:o.Notes,itemSpecifics:o["Item Specifics"],photoCount:o.Photos,minOffer:money(o["Min Offer (USD)"]),offersAllowed:o["Offers Allowed"]}};
 }
 let records=[],inventory=[],existingListings=[];
-const stop=new Set(["the","a","an","and","or","with","of","for","to","in","on","vintage","set"]);
+const stop=new Set(["the","a","an","and","or","with","of","for","to","in","on","vintage","set","lot","new","used"]);
 function tokens(s){return new Set(String(s||"").toLowerCase().replace(/[^a-z0-9]+/g," ").split(/\s+/).filter(x=>x.length>1&&!stop.has(x)))}
-function similarity(a,b){const A=tokens(a),B=tokens(b);if(!A.size||!B.size)return 0;let hit=0;A.forEach(x=>{if(B.has(x))hit++});return Math.round(100*hit/(A.size+B.size-hit))}
+function similarity(a,b){const A=tokens(a),B=tokens(b);if(!A.size||!B.size)return 0;let hit=0;A.forEach(x=>{if(B.has(x))hit++});const j=hit/(A.size+B.size-hit),contain=hit/Math.min(A.size,B.size);return Math.round(100*(0.45*j+0.55*contain))}
 function bestInventoryMatch(r){let best=null;for(const item of inventory){const names=[item.listing_title,item.title].filter(Boolean);const titleScore=Math.max(0,...names.map(n=>similarity(r.title,n)));const itemPrices=[item.sale_price,item.list_price,item.target_price].map(Number).filter(Number.isFinite);const priceMatch=r.price&&itemPrices.some(p=>Math.abs(p-r.price)<0.01);let adjusted=titleScore+(priceMatch?12:0);if(titleScore>=60&&priceMatch)adjusted+=8;if(titleScore>=85)adjusted+=8;adjusted=Math.min(100,adjusted);if(!best||adjusted>best.score)best={item,score:adjusted,titleScore,priceMatch}}return best}
 function reconcile(){
  const byExternal=new Map(existingListings.map(x=>[String(x.external_listing_id||""),x]));
