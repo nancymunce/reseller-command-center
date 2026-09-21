@@ -279,7 +279,7 @@ function renderMarketplaceBars(sold) {
   const totals = {};
   sold.forEach(item => {
     const key = item.saleMarketplace || "Other";
-    totals[key] = (totals[key] || 0) + profit(item);
+    totals[key] = (totals[key] || 0) + (profit(item) || 0);
   });
 
   const entries = Object.entries(totals).sort((a,b) => b[1] - a[1]);
@@ -331,7 +331,7 @@ function renderRecentItems() {
       <td>${currency(item.purchaseCost)}</td>
       <td>${(item.listedMarketplaces || []).map(m => `<span class="badge">${escapeHtml(m)}</span>`).join("") || "—"}</td>
       <td>${item.status === "Sold" ? currency(item.salePrice) : "—"}</td>
-      <td>${item.status === "Sold" ? currency(profit(item)) : "—"}</td>
+      <td>${item.status === "Sold" ? item.costStatus === "unknown" ? "—" : currency(profit(item)) : "—"}</td>
     </tr>
   `).join("") : `<tr><td colspan="6" class="empty">No items yet.</td></tr>`;
 }
