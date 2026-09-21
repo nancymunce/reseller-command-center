@@ -358,6 +358,46 @@ function renderInventory() {
   });
 }
 
+
+function needsCompletion(item) {
+  const imported = String(item.source || "").startsWith("Imported from eBay");
+  return imported && (!item.storage || !item.purchaseDate || Number(item.purchaseCost || 0) === 0 || item.source === "Imported from eBay" || item.source === "Imported from eBay Draft");
+}
+function renderCompleteInventory() {
+  const queue = items.filter(needsCompletion);
+  const imported = items.filter(i => String(i.source || "").startsWith("Imported from eBay"));
+  const missingCost = imported.filter(i => Number(i.purchaseCost || 0) === 0).length;
+  const missingStorage = imported.filter(i => !i.storage).length;
+  const missingDate = imported.filter(i => !i.purchaseDate).length;
+  if (!$("completeInventoryTable")) return;
+  $("completeCount").textContent = queue.length;
+  $("missingCostCount").textContent = missingCost;
+  $("missingStorageCount").textContent = missingStorage;
+  $("missingDateCount").textContent = missingDate;
+  $("completeInventoryTable").innerHTML = queue.length ? queue.map(item => `
+    <tr data-complete-id="${item.id}">
+      <td><input class="complete-select" type="checkbox" data-id="${item.id}" aria-label="Select ${escapeHtml(item.title)}"></td>
+      <td><div class="item-title">${escapeHtml(item.title)}</div><div class="item-meta">${escapeHtml(item.status)}</div></td>
+      <td><input class="complete-cost compact-input" type="number" min="0" step=".01" value="${Number(item.purchaseCost || 0) || ""}" placeholder="Unknown"></td>
+      <td><input class="complete-storage compact-input" value="${escapeHtml(item.storage || "")}" placeholder="BIN / shelf"></td>
+      <td><input class="complete-date compact-input" type="date" value="${escapeHtml(item.purchaseDate || "")}"></td>
+      <td><input class="complete-source compact-input" value="${String(item.source||"").startsWith("Imported from eBay") ? "" : escapeHtml(item.source||"")}" placeholder="Goodwill, estate sale..."></td>
+      <td><button class="secondary complete-save" data-id="${item.id}" type="button">Save</button></td>
+    </tr>`).join("") : '<tr><td colspan="7" class="empty">Everything is complete. Nice work!</td></tr>';
+  document.querySelectorAll(".complete-save").forEach(btn => btn.addEventListener("click", () => saveCompleteRow(btn.dataset.id)));
+}
+async function saveCompleteRow(id) {
+  const item = items.find(i => i.id === id), row=document.querySelector('[data-complete-id="'+id+'"]'); if(!item||!row)return;
+  const updated={...item,purchaseCost:Number(row.querySelector(".complete-cost").value||0),storage:row.querySelector(".complete-storage").value.trim(),purchaseDate:row.querySelector(".complete-date").value,source:row.querySelector(".complete-source").value.trim()||item.source};
+  try { const saved=await saveCloudItem(updated); items[items.findIndex(i=>i.id===id)]=saved; renderAll(); toast("Inventory details saved"); } catch(error){alert("Could not save this item. "+error.message);}
+}
+async function applyBulkCompletion() {
+  const ids=[...document.querySelectorAll(".complete-select:checked")].map(x=>x.dataset.id); if(!ids.length){toast("Select at least one item");return;}
+  const storage=$("bulkStorage").value.trim(), source=$("bulkSource").value.trim(); if(!storage&&!source){toast("Enter a storage location or source");return;}
+  const button=$("applyBulkCompleteBtn"); button.disabled=true;
+  try { for(const id of ids){const item=items.find(i=>i.id===id);if(!item)continue;await saveCloudItem({...item,storage:storage||item.storage,source:source||item.source});} await loadCloudInventory(); toast(ids.length+" items updated"); } catch(error){alert("Bulk update stopped. "+error.message);} finally {button.disabled=false;}
+}
+
 function renderSales() {
   const sold = items.filter(i => i.status === "Sold").sort((a,b) => (b.saleDate || "").localeCompare(a.saleDate || ""));
   $("salesTable").innerHTML = sold.length ? sold.map(item => `
@@ -413,6 +453,7 @@ function renderMarketplaceCards() {
       showView("inventory");
       $("marketplaceFilter").value = btn.dataset.market;
       renderInventory();
+  renderCompleteInventory();
     });
   });
 }
@@ -834,6 +875,8 @@ $("deleteItemBtn").addEventListener("click", async () => {
 });
 
 $("inventorySearch").addEventListener("input", renderInventory);
+$("applyBulkCompleteBtn")?.addEventListener("click", applyBulkCompletion);
+$("selectAllComplete")?.addEventListener("change", e => document.querySelectorAll(".complete-select").forEach(x => x.checked=e.target.checked));
 $("statusFilter").addEventListener("change", renderInventory);
 $("marketplaceFilter").addEventListener("change", renderInventory);
 
