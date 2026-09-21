@@ -668,7 +668,7 @@ let listingAgentPhotos = [];
 function renderListingAgentPhotos() {
   const box=$("listingPhotoPreview"), button=$("analyzeListingPhotosBtn"); if(!box||!button)return;
   box.innerHTML=listingAgentPhotos.map((file,i)=>`<figure><img src="${URL.createObjectURL(file)}" alt="Item photo ${i+1}"><figcaption>Photo ${i+1}</figcaption></figure>`).join("");
-  button.disabled=!listingAgentPhotos.length;
+  button.disabled=!listingAgentPhotos.length; const museButton=$("sendToMuseBtn"); if(museButton)museButton.disabled=!listingAgentPhotos.length;
   $("listingAgentStatus").textContent=listingAgentPhotos.length ? listingAgentPhotos.length+" photo"+(listingAgentPhotos.length===1?"":"s")+" ready" : "Ready for photos";
   $("listingAgentMessage").textContent=listingAgentPhotos.length ? "Photos are staged locally. They have not been uploaded or added to inventory." : "Nothing will be added to inventory until you review and approve the draft.";
 }
@@ -859,6 +859,37 @@ document.querySelectorAll("[data-jump]").forEach(btn => btn.addEventListener("cl
 
 $("addItemBtn").addEventListener("click", () => openItemDialog());
 $("listingAgentPhotos")?.addEventListener("change", e => { listingAgentPhotos=[...e.target.files]; renderListingAgentPhotos(); });
+function buildMuseHandoff(){
+  const costStatus=$("agentCostStatus").value, cost=$("agentCost").value;
+  const costLine=costStatus==="free"?"Free ($0)":costStatus==="known"&&cost?("$"+Number(cost).toFixed(2)):"Unknown";
+  return `RESELLER COMMAND CENTER — EBAY LISTING JOB
+
+I am attaching photos of one resale item. Please act as my listing agent.
+
+1. Examine every photo carefully, including maker's marks, labels, signatures, model numbers, pattern details, condition and damage.
+2. Identify the item as accurately as the evidence allows. Do not invent brand, model, age, material, provenance, dimensions or pattern.
+3. Research appropriate eBay pricing/comparables if available.
+4. Create a strong eBay title, select the best category, condition and relevant item specifics, and write an accurate buyer-friendly description.
+5. Use the photos I attach for the listing.
+6. Before publishing, show me the proposed title and price if you encounter meaningful uncertainty about identification or value. Otherwise proceed using my normal eBay account/session.
+7. Publish the listing on eBay.
+8. When finished, return the eBay item number, listing URL, final title, final list price and any important identification notes so I can record them in my Reseller Command Center.
+
+MY BUSINESS-SIDE DETAILS
+Cost: ${costLine}
+Purchase source: ${$("agentSource").value.trim()||"Not provided"}
+Storage location: ${$("agentStorage").value.trim()||"Not provided"}
+Seller notes: ${$("agentNotes").value.trim()||"None"}
+
+Important: Do not include my acquisition cost, purchase source or storage location in the public eBay listing. Those are private inventory details.`;
+}
+$("sendToMuseBtn")?.addEventListener("click",()=>{
+  $("museHandoffText").value=buildMuseHandoff(); $("museHandoffPanel").hidden=false;
+  $("listingAgentStatus").textContent="Muse package ready"; $("listingAgentMessage").textContent="Copy the instructions, then attach these same photos in Muse.";
+  $("museHandoffPanel").scrollIntoView({behavior:"smooth",block:"start"});
+});
+$("copyMuseHandoffBtn")?.addEventListener("click",async()=>{try{await navigator.clipboard.writeText($("museHandoffText").value);toast("Muse instructions copied");}catch{ $("museHandoffText").select(); document.execCommand("copy"); toast("Muse instructions copied"); }});
+
 $("analyzeListingPhotosBtn")?.addEventListener("click", async () => {
   const button=$("analyzeListingPhotosBtn"); button.disabled=true;
   $("listingAgentStatus").textContent="Analyzing photos…"; $("listingAgentMessage").textContent="Building an editable listing draft.";
