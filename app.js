@@ -663,6 +663,16 @@ function showView(viewId) {
   if (history.replaceState) history.replaceState(null, "", `#${viewId}`);
 }
 
+
+let listingAgentPhotos = [];
+function renderListingAgentPhotos() {
+  const box=$("listingPhotoPreview"), button=$("analyzeListingPhotosBtn"); if(!box||!button)return;
+  box.innerHTML=listingAgentPhotos.map((file,i)=>`<figure><img src="${URL.createObjectURL(file)}" alt="Item photo ${i+1}"><figcaption>Photo ${i+1}</figcaption></figure>`).join("");
+  button.disabled=!listingAgentPhotos.length;
+  $("listingAgentStatus").textContent=listingAgentPhotos.length ? listingAgentPhotos.length+" photo"+(listingAgentPhotos.length===1?"":"s")+" ready" : "Ready for photos";
+  $("listingAgentMessage").textContent=listingAgentPhotos.length ? "Photos are staged locally. They have not been uploaded or added to inventory." : "Nothing will be added to inventory until you review and approve the draft.";
+}
+
 function openItemDialog(id = "") {
   const item = id ? items.find(i => i.id === id) : null;
   $("dialogTitle").textContent = item ? "Edit Item" : "Add Item";
@@ -848,6 +858,11 @@ document.querySelectorAll(".tab").forEach(tab => tab.addEventListener("click", (
 document.querySelectorAll("[data-jump]").forEach(btn => btn.addEventListener("click", () => showView(btn.dataset.jump)));
 
 $("addItemBtn").addEventListener("click", () => openItemDialog());
+$("listingAgentPhotos")?.addEventListener("change", e => { listingAgentPhotos=[...e.target.files]; renderListingAgentPhotos(); });
+$("analyzeListingPhotosBtn")?.addEventListener("click", () => {
+  $("listingAgentStatus").textContent="Photo analysis connection is next";
+  $("listingAgentMessage").textContent="The photo intake is working. Next we will connect secure AI vision so it can identify the item and produce the editable listing draft. No inventory record has been created.";
+});
 $("closeDialogBtn").addEventListener("click", () => $("itemDialog").close());
 $("cancelBtn").addEventListener("click", () => $("itemDialog").close());
 
