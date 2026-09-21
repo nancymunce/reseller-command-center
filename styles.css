@@ -438,3 +438,5 @@ legend { font-weight: 800; padding: 0 6px; }
 #completeInventoryTable td { vertical-align:middle; }
 #completeInventoryTable .item-title { min-width:260px; }
 @media (max-width:820px){.complete-bulk{align-items:stretch;flex-direction:column}.complete-bulk input{width:100%}}
+
+.cost-entry{display:flex;gap:6px;align-items:center}.cost-entry select{min-width:92px}.cost-entry input{width:90px}
