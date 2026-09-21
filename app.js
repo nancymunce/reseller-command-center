@@ -225,9 +225,10 @@ function roi(item) {
 }
 
 function daysBetween(start, end = new Date().toISOString().slice(0, 10)) {
-  if (!start) return 0;
+  if (!start || !end) return null;
   const a = new Date(`${start}T12:00:00`);
   const b = new Date(`${end}T12:00:00`);
+  if (!Number.isFinite(a.getTime()) || !Number.isFinite(b.getTime())) return null;
   return Math.max(0, Math.round((b - a) / 86400000));
 }
 
@@ -252,14 +253,15 @@ function renderDashboard() {
   const net = sold.reduce((sum, i) => sum + profit(i), 0);
   const activeCost = active.reduce((sum, i) => sum + Number(i.purchaseCost || 0), 0);
   const avgRoi = sold.length ? sold.reduce((sum, i) => sum + roi(i), 0) / sold.length : 0;
-  const avgDays = sold.length ? sold.reduce((sum, i) => sum + daysBetween(i.purchaseDate, i.saleDate), 0) / sold.length : 0;
+  const soldWithDates = sold.filter(i => daysBetween(i.purchaseDate, i.saleDate) !== null);
+  const avgDays = soldWithDates.length ? soldWithDates.reduce((sum, i) => sum + daysBetween(i.purchaseDate, i.saleDate), 0) / soldWithDates.length : null;
 
   $("netProfit").textContent = currency(net);
   $("grossSales").textContent = currency(gross);
   $("activeInventory").textContent = active.length;
   $("inventoryCost").textContent = currency(activeCost);
   $("averageRoi").textContent = `${Math.round(avgRoi)}%`;
-  $("avgDays").textContent = Math.round(avgDays);
+  $("avgDays").textContent = avgDays === null ? "—" : Math.round(avgDays);
 
   renderMarketplaceBars(sold);
   renderAttention(active);
@@ -348,7 +350,7 @@ function renderInventory() {
       <td>${currency(item.purchaseCost)}</td>
       <td>${statusBadge(item.status)}</td>
       <td>${(item.listedMarketplaces || []).map(m => `<span class="badge">${escapeHtml(m)}</span>`).join("") || "—"}</td>
-      <td>${daysBetween(item.purchaseDate, item.saleDate || undefined)}</td>
+      <td>${daysBetween(item.purchaseDate, item.saleDate || new Date().toISOString().slice(0, 10)) ?? "—"}</td>
       <td><button class="text-button edit-item" data-id="${item.id}">Edit</button></td>
     </tr>
   `).join("") : `<tr><td colspan="9" class="empty">No matching inventory.</td></tr>`;
