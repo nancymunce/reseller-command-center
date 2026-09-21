@@ -119,6 +119,7 @@ function itemToDatabase(item) {
     brand: item.brand || null,
     category: item.category || null,
     purchase_cost: Number(item.purchaseCost || 0),
+    cost_status: item.costStatus || "known",
     purchase_date: item.purchaseDate || null,
     source: item.source || null,
     storage_location: item.storage || null,
@@ -139,7 +140,7 @@ function itemToDatabase(item) {
 function databaseToItem(row) {
   return {
     id: row.id, title: row.title, brand: row.brand || "", category: row.category || "",
-    purchaseCost: Number(row.purchase_cost || 0), purchaseDate: row.purchase_date || "",
+    purchaseCost: Number(row.purchase_cost || 0), costStatus: row.cost_status || "known", purchaseDate: row.purchase_date || "",
     source: row.source || "", storage: row.storage_location || "", status: row.status || "Unlisted",
     listPrice: Number(row.list_price || 0), listedMarketplaces: row.listed_marketplaces || [],
     saleMarketplace: row.sale_marketplace || "", saleDate: row.sale_date || "",
@@ -211,6 +212,7 @@ function saveOpportunities() {
 }
 
 function profit(item) {
+  if (item.costStatus === "unknown") return null;
   return Number(item.salePrice || 0)
     + Number(item.shippingCollected || 0)
     - Number(item.purchaseCost || 0)
@@ -220,8 +222,10 @@ function profit(item) {
 }
 
 function roi(item) {
+  if (item.costStatus === "unknown" || item.costStatus === "free") return null;
   const cost = Number(item.purchaseCost || 0);
-  return cost > 0 ? (profit(item) / cost) * 100 : 0;
+  const net = profit(item);
+  return cost > 0 && net !== null ? (net / cost) * 100 : null;
 }
 
 function daysBetween(start, end = new Date().toISOString().slice(0, 10)) {
@@ -250,9 +254,12 @@ function renderDashboard() {
   const sold = items.filter(i => i.status === "Sold");
   const active = items.filter(i => i.status !== "Sold");
   const gross = sold.reduce((sum, i) => sum + Number(i.salePrice || 0) + Number(i.shippingCollected || 0), 0);
-  const net = sold.reduce((sum, i) => sum + profit(i), 0);
-  const activeCost = active.reduce((sum, i) => sum + Number(i.purchaseCost || 0), 0);
-  const avgRoi = sold.length ? sold.reduce((sum, i) => sum + roi(i), 0) / sold.length : 0;
+  const soldWithKnownCost = sold.filter(i => i.costStatus !== "unknown");
+  const net = soldWithKnownCost.reduce((sum, i) => sum + (profit(i) || 0), 0);
+  const activeKnownCost = active.filter(i => i.costStatus !== "unknown");
+  const activeCost = activeKnownCost.reduce((sum, i) => sum + Number(i.purchaseCost || 0), 0);
+  const soldWithRoi = sold.filter(i => roi(i) !== null);
+  const avgRoi = soldWithRoi.length ? soldWithRoi.reduce((sum, i) => sum + roi(i), 0) / soldWithRoi.length : null;
   const soldWithDates = sold.filter(i => daysBetween(i.purchaseDate, i.saleDate) !== null);
   const avgDays = soldWithDates.length ? soldWithDates.reduce((sum, i) => sum + daysBetween(i.purchaseDate, i.saleDate), 0) / soldWithDates.length : null;
 
@@ -260,7 +267,7 @@ function renderDashboard() {
   $("grossSales").textContent = currency(gross);
   $("activeInventory").textContent = active.length;
   $("inventoryCost").textContent = currency(activeCost);
-  $("averageRoi").textContent = `${Math.round(avgRoi)}%`;
+  $("averageRoi").textContent = avgRoi === null ? "—" : `${Math.round(avgRoi)}%`;
   $("avgDays").textContent = avgDays === null ? "—" : Math.round(avgDays);
 
   renderMarketplaceBars(sold);
@@ -363,12 +370,12 @@ function renderInventory() {
 
 function needsCompletion(item) {
   const imported = String(item.source || "").startsWith("Imported from eBay");
-  return imported && (!item.storage || !item.purchaseDate || Number(item.purchaseCost || 0) === 0 || item.source === "Imported from eBay" || item.source === "Imported from eBay Draft");
+  return imported && (!item.storage || !item.purchaseDate || item.costStatus === "unknown" || item.source === "Imported from eBay" || item.source === "Imported from eBay Draft");
 }
 function renderCompleteInventory() {
   const queue = items.filter(needsCompletion);
   const imported = items.filter(i => String(i.source || "").startsWith("Imported from eBay"));
-  const missingCost = imported.filter(i => Number(i.purchaseCost || 0) === 0).length;
+  const missingCost = imported.filter(i => i.costStatus === "unknown").length;
   const missingStorage = imported.filter(i => !i.storage).length;
   const missingDate = imported.filter(i => !i.purchaseDate).length;
   if (!$("completeInventoryTable")) return;
@@ -380,7 +387,7 @@ function renderCompleteInventory() {
     <tr data-complete-id="${item.id}">
       <td><input class="complete-select" type="checkbox" data-id="${item.id}" aria-label="Select ${escapeHtml(item.title)}"></td>
       <td><div class="item-title">${escapeHtml(item.title)}</div><div class="item-meta">${escapeHtml(item.status)}</div></td>
-      <td><input class="complete-cost compact-input" type="number" min="0" step=".01" value="${Number(item.purchaseCost || 0) || ""}" placeholder="Unknown"></td>
+      <td><div class="cost-entry"><select class="complete-cost-status compact-input"><option value="unknown" ${item.costStatus==="unknown"?"selected":""}>Unknown</option><option value="known" ${item.costStatus==="known"?"selected":""}>Known</option><option value="free" ${item.costStatus==="free"?"selected":""}>Free</option></select><input class="complete-cost compact-input" type="number" min="0" step=".01" value="${item.costStatus==="known" ? Number(item.purchaseCost||0) : ""}" placeholder="Cost"></div></td>
       <td><input class="complete-storage compact-input" value="${escapeHtml(item.storage || "")}" placeholder="BIN / shelf"></td>
       <td><input class="complete-date compact-input" type="date" value="${escapeHtml(item.purchaseDate || "")}"></td>
       <td><input class="complete-source compact-input" value="${String(item.source||"").startsWith("Imported from eBay") ? "" : escapeHtml(item.source||"")}" placeholder="Goodwill, estate sale..."></td>
@@ -390,7 +397,7 @@ function renderCompleteInventory() {
 }
 async function saveCompleteRow(id) {
   const item = items.find(i => i.id === id), row=document.querySelector('[data-complete-id="'+id+'"]'); if(!item||!row)return;
-  const updated={...item,purchaseCost:Number(row.querySelector(".complete-cost").value||0),storage:row.querySelector(".complete-storage").value.trim(),purchaseDate:row.querySelector(".complete-date").value,source:row.querySelector(".complete-source").value.trim()||item.source};
+  const costStatus=row.querySelector(".complete-cost-status").value; const costValue=Number(row.querySelector(".complete-cost").value||0); if(costStatus==="known" && costValue<0){toast("Enter a valid cost");return;} const updated={...item,costStatus,purchaseCost:costStatus==="free"?0:costValue,storage:row.querySelector(".complete-storage").value.trim(),purchaseDate:row.querySelector(".complete-date").value,source:row.querySelector(".complete-source").value.trim()||item.source};
   try { const saved=await saveCloudItem(updated); items[items.findIndex(i=>i.id===id)]=saved; renderAll(); toast("Inventory details saved"); } catch(error){alert("Could not save this item. "+error.message);}
 }
 async function applyBulkCompletion() {
