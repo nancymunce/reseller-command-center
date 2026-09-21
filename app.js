@@ -859,9 +859,24 @@ document.querySelectorAll("[data-jump]").forEach(btn => btn.addEventListener("cl
 
 $("addItemBtn").addEventListener("click", () => openItemDialog());
 $("listingAgentPhotos")?.addEventListener("change", e => { listingAgentPhotos=[...e.target.files]; renderListingAgentPhotos(); });
-$("analyzeListingPhotosBtn")?.addEventListener("click", () => {
-  $("listingAgentStatus").textContent="Photo analysis connection is next";
-  $("listingAgentMessage").textContent="The photo intake is working. Next we will connect secure AI vision so it can identify the item and produce the editable listing draft. No inventory record has been created.";
+$("analyzeListingPhotosBtn")?.addEventListener("click", async () => {
+  const button=$("analyzeListingPhotosBtn"); button.disabled=true;
+  $("listingAgentStatus").textContent="Analyzing photos…"; $("listingAgentMessage").textContent="Building an editable listing draft.";
+  try {
+    const images=await Promise.all(listingAgentPhotos.map(file=>new Promise((resolve,reject)=>{const reader=new FileReader();reader.onload=()=>resolve(reader.result);reader.onerror=reject;reader.readAsDataURL(file);})));
+    const facts={cost:$("agentCost").value||null,cost_status:$("agentCostStatus").value,source:$("agentSource").value.trim(),storage:$("agentStorage").value.trim(),notes:$("agentNotes").value.trim()};
+    const {data,error}=await supabaseClient.functions.invoke("listing-agent-analyze",{body:{images,facts}}); if(error) throw error; if(data?.error) throw new Error(data.error);
+    const d=data.draft||{}; $("agentDraftTitle").value=d.title||""; $("agentDraftBrand").value=d.brand||""; $("agentDraftCategory").value=d.category||""; $("agentDraftCondition").value=d.condition||""; $("agentDraftPrice").value=d.suggested_price||""; $("agentDraftDescription").value=d.description||""; $("agentDraftResearch").value=d.research_notes||""; $("listingDraftPanel").hidden=false;
+    $("listingAgentStatus").textContent="Draft ready for review"; $("listingAgentMessage").textContent="Review everything below. Nothing is saved until you approve it.";
+  } catch(error) { $("listingAgentStatus").textContent="AI connection not ready"; $("listingAgentMessage").textContent=error.message||"Could not analyze these photos."; }
+  finally {button.disabled=false;}
+});
+$("discardAgentDraftBtn")?.addEventListener("click",()=>{$("listingDraftPanel").hidden=true;$("listingAgentStatus").textContent="Photos ready";$("listingAgentMessage").textContent="Analyze again whenever you are ready.";});
+$("approveAgentDraftBtn")?.addEventListener("click",async()=>{
+  const costStatus=$("agentCostStatus").value, cost=costStatus==="free"?0:Number($("agentCost").value||0);
+  const item={id:crypto.randomUUID(),title:$("agentDraftTitle").value.trim(),brand:$("agentDraftBrand").value.trim(),category:$("agentDraftCategory").value.trim(),purchaseCost:cost,costStatus,purchaseDate:new Date().toISOString().slice(0,10),source:$("agentSource").value.trim(),storage:$("agentStorage").value.trim(),status:"Unlisted",listPrice:Number($("agentDraftPrice").value||0),listedMarketplaces:[],saleMarketplace:"",saleDate:"",salePrice:0,shippingCollected:0,fees:0,shippingCost:0,otherExpenses:0,notes:[ $("agentDraftDescription").value.trim(), $("agentDraftCondition").value.trim() ? "Condition: "+$("agentDraftCondition").value.trim() : "", $("agentDraftResearch").value.trim() ? "AI research notes: "+$("agentDraftResearch").value.trim() : "" ].filter(Boolean).join("\n\n")};
+  if(!item.title){toast("Give the listing a title first");return;}
+  try{const saved=await saveCloudItem(item);items.unshift(saved);renderAll();$("listingDraftPanel").hidden=true;$("listingAgentStatus").textContent="Added to inventory";$("listingAgentMessage").textContent="The approved draft is now a master inventory item. Marketplace publishing comes next.";toast("Listing added to inventory");}catch(error){alert("Could not add listing. "+error.message);}
 });
 $("closeDialogBtn").addEventListener("click", () => $("itemDialog").close());
 $("cancelBtn").addEventListener("click", () => $("itemDialog").close());
