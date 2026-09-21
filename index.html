@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Reseller Command Center</title>
-  <link rel="stylesheet" href="styles.css?v=20260918-cloud1" />
+  <link rel="stylesheet" href="styles.css?v=20260921-complete1" />
 </head>
 <body>
   <section id="authGate" class="auth-gate">
@@ -39,6 +39,7 @@
     <button class="tab active" data-view="dashboard">Dashboard</button>
     <button class="tab" data-view="inventory">Inventory</button>
     <button class="tab" data-view="sales">Sales</button>
+    <button class="tab" data-view="complete">Complete Inventory</button>
     <button class="tab" data-view="sourcing">Sourcing Scout</button>
     <button class="tab" data-view="marketplaces">Marketplaces</button>
     <button class="tab" data-view="settings">Settings</button>
@@ -174,6 +175,13 @@
           </table>
         </div>
       </div>
+    </section>
+
+    <section id="complete" class="view">
+      <div class="section-toolbar"><div><p class="eyebrow">Cleanup Queue</p><h2>Complete Inventory</h2><p class="section-intro">Fill in the business details eBay could not provide. Save one item at a time or apply storage/source to selected items in bulk.</p></div></div>
+      <div class="stats-grid complete-stats"><article class="stat-card"><span>Needs Details</span><strong id="completeCount">0</strong><small>Items still incomplete</small></article><article class="stat-card"><span>Missing Cost</span><strong id="missingCostCount">0</strong><small>Imported cost not yet entered</small></article><article class="stat-card"><span>Missing Storage</span><strong id="missingStorageCount">0</strong><small>Need a bin, shelf or room</small></article><article class="stat-card"><span>Missing Purchase Date</span><strong id="missingDateCount">0</strong><small>Optional if unknown</small></article></div>
+      <div class="panel complete-bulk"><strong>Bulk update selected</strong><input id="bulkStorage" placeholder="Storage location (example: BIN A12)" /><input id="bulkSource" placeholder="Purchase source (example: Goodwill)" /><button class="secondary" id="applyBulkCompleteBtn" type="button">Apply to Selected</button></div>
+      <div class="panel"><div class="table-wrap"><table><thead><tr><th><input id="selectAllComplete" type="checkbox" aria-label="Select all visible items"></th><th>Item</th><th>Cost</th><th>Storage</th><th>Purchase Date</th><th>Purchase Source</th><th></th></tr></thead><tbody id="completeInventoryTable"></tbody></table></div></div>
     </section>
 
     <section id="sales" class="view">
@@ -601,6 +609,6 @@
        Row Level Security in Supabase protects the actual inventory data. -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="supabase-config.js?v=20260918-cloud1"></script>
-  <script src="app.js?v=20260918-cloud1"></script>
+  <script src="app.js?v=20260921-complete1"></script>
 </body>
 </html>
