@@ -643,6 +643,7 @@ function renderSettings() {
 function renderAll() {
   renderDashboard();
   renderInventory();
+  renderCompleteInventory();
   renderSales();
   renderScout();
   renderMarketplaceCards();
