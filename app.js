@@ -890,6 +890,44 @@ $("sendToMuseBtn")?.addEventListener("click",()=>{
 });
 $("copyMuseHandoffBtn")?.addEventListener("click",async()=>{try{await navigator.clipboard.writeText($("museHandoffText").value);toast("Muse instructions copied");}catch{ $("museHandoffText").select(); document.execCommand("copy"); toast("Muse instructions copied"); }});
 
+let parsedMuseResult=null;
+function parseMuseResult(text){
+  const item=(text.match(/Item number:\s*([0-9]{9,15})/i)||text.match(/ebay\.com\/itm\/([0-9]{9,15})/i)||[])[1]||"";
+  const url=(text.match(/https?:\/\/(?:www\.)?ebay\.com\/itm\/[0-9]+[^\s)]*/i)||[])[0]|| (item?`https://www.ebay.com/itm/${item}`:"");
+  const title=(text.match(/(?:^|\n)[•*\-\s]*Title:\s*(.+)/i)||[])[1]?.trim()||"";
+  const priceRaw=(text.match(/(?:^|\n)[•*\-\s]*Price:\s*\$?([0-9]+(?:\.[0-9]{1,2})?)/i)||[])[1]||"";
+  const notes=(text.match(/(?:^|\n)[•*\-\s]*ID notes:\s*([\s\S]*?)(?=\n[•*\-\s]*(?:Two tiny things|For your records|Cost:|$))/i)||[])[1]?.trim()||"";
+  const bin=(text.match(/(?:Bin|Storage(?: location)?):?\s*([A-Za-z0-9 _-]+)/i)||[])[1]?.trim()||"";
+  const cost=(text.match(/\$([0-9]+(?:\.[0-9]{1,2})?)\s+from\s+/i)||[])[1]||"";
+  const source=(text.match(/\$[0-9]+(?:\.[0-9]{1,2})?\s+from\s+([^\n.]+)/i)||[])[1]?.trim()||"";
+  return {item,url,title,price:priceRaw?Number(priceRaw):0,notes,bin,cost:cost?Number(cost):null,source,raw:text};
+}
+$("parseMuseResultBtn")?.addEventListener("click",()=>{
+  parsedMuseResult=parseMuseResult($("museResultText").value);
+  const p=parsedMuseResult;
+  if(!p.item||!p.title){toast("I need at least an eBay item number and title");return;}
+  $("museResultPreview").hidden=false;
+  $("museResultPreview").innerHTML=`<strong>${escapeHtml(p.title)}</strong><div class="item-meta">eBay #${escapeHtml(p.item)} · ${money(p.price)}</div><div class="item-meta">${p.bin?"Storage: "+escapeHtml(p.bin)+" · ":""}${p.cost!==null?"Cost: "+money(p.cost)+" · ":""}${p.source?"Source: "+escapeHtml(p.source):""}</div><p class="item-meta">Nothing has been saved yet.</p>`;
+  $("saveMuseResultBtn").disabled=false;
+});
+$("saveMuseResultBtn")?.addEventListener("click",async()=>{
+  const p=parsedMuseResult||parseMuseResult($("museResultText").value);
+  if(!p.item||!p.title)return;
+  const costStatus=$("agentCostStatus").value;
+  const cost=p.cost!==null?p.cost:(costStatus==="free"?0:Number($("agentCost").value||0));
+  const item={id:crypto.randomUUID(),title:p.title,brand:"",category:"",purchaseCost:cost,costStatus:p.cost!==null?"known":costStatus,purchaseDate:"",source:p.source||$("agentSource").value.trim(),storage:p.bin||$("agentStorage").value.trim(),status:"Listed",listPrice:p.price,listedMarketplaces:["eBay"],saleMarketplace:"",saleDate:"",salePrice:0,shippingCollected:0,fees:0,shippingCost:0,otherExpenses:0,notes:[p.notes,p.url?`eBay: ${p.url}`:"",p.item?`eBay item number: ${p.item}`:""].filter(Boolean).join("\n\n")};
+  const button=$("saveMuseResultBtn"); button.disabled=true;
+  try{
+    const saved=await saveCloudItem(item);
+    const {error}=await supabaseClient.from("marketplace_listings").upsert({inventory_item_id:saved.id,marketplace:"eBay",external_listing_id:p.item,listing_url:p.url||null,title:p.title,status:"active",price:p.price||null,currency:"USD",raw_data:{source:"Muse handoff",response:p.raw},listed_at:new Date().toISOString(),last_synced_at:new Date().toISOString()},{onConflict:"owner_id,marketplace,external_listing_id"});
+    if(error)throw error;
+    items.unshift(saved);renderAll();
+    $("listingAgentStatus").textContent="Live on eBay ✓"; $("listingAgentMessage").textContent=`eBay #${p.item} is linked to the master inventory record.`;
+    toast("eBay listing linked to inventory");
+    $("museResultText").value="";$("museResultPreview").hidden=true;parsedMuseResult=null;
+  }catch(error){alert("Nothing was changed intentionally if the save failed. Error: "+error.message);button.disabled=false;}
+});
+
 $("analyzeListingPhotosBtn")?.addEventListener("click", async () => {
   const button=$("analyzeListingPhotosBtn"); button.disabled=true;
   $("listingAgentStatus").textContent="Analyzing photos…"; $("listingAgentMessage").textContent="Building an editable listing draft.";
