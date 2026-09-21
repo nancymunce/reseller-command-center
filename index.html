@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Reseller Command Center</title>
-  <link rel="stylesheet" href="styles.css?v=20260921-agent1" />
+  <link rel="stylesheet" href="styles.css?v=20260921-muse2" />
 </head>
 <body>
   <section id="authGate" class="auth-gate">
@@ -221,7 +221,7 @@
         <article class="panel listing-photo-panel"><h3>1. Add item photos</h3><label class="listing-dropzone" for="listingAgentPhotos"><strong>📷 Choose Photos</strong><span>Front, back, maker's mark, label, damage, and anything distinctive</span><input id="listingAgentPhotos" type="file" accept="image/*" multiple hidden></label><div id="listingPhotoPreview" class="listing-photo-preview"></div><div class="agent-actions"><button id="sendToMuseBtn" class="primary" type="button" disabled>Send to Muse</button><button id="analyzeListingPhotosBtn" class="secondary" type="button" disabled>Use My AI (optional)</button></div></article>
         <article class="panel"><h3>2. What you know</h3><div class="form-grid"><label>What did you pay?<input id="agentCost" type="number" min="0" step=".01" placeholder="Leave blank if unknown"></label><label>Cost status<select id="agentCostStatus"><option value="unknown">Unknown</option><option value="known">Known</option><option value="free">Free</option></select></label><label>Where did you get it?<input id="agentSource" placeholder="Goodwill, estate sale, free..."></label><label>Storage location<input id="agentStorage" placeholder="BIN A12"></label><label class="span-2">Anything I should know?<textarea id="agentNotes" rows="3" placeholder="Set of 4, small chip on rim, tested and working..."></textarea></label></div></article>
         <article class="panel wide listing-agent-status"><p class="eyebrow">Agent status</p><h3 id="listingAgentStatus">Ready for photos</h3><p id="listingAgentMessage">Nothing will be added to inventory until you review and approve the draft.</p></article>
-        <article id="museHandoffPanel" class="panel wide" hidden><div class="panel-heading"><div><p class="eyebrow">Muse handoff</p><h3>3. Send this job to Muse</h3></div></div><p>The package below tells Muse exactly what to do. Your photos remain selected above so you can attach the same photos in Muse.</p><textarea id="museHandoffText" rows="12" readonly></textarea><div class="dialog-actions"><button id="copyMuseHandoffBtn" class="primary" type="button">Copy Muse Instructions</button></div><p class="muted">After Muse publishes the eBay listing, bring back the eBay item number or URL so the Command Center can link it to your inventory.</p></article>
+        <article id="museHandoffPanel" class="panel wide" hidden><div class="panel-heading"><div><p class="eyebrow">Muse handoff</p><h3>3. Send this job to Muse</h3></div></div><p>The package below tells Muse exactly what to do. Your photos remain selected above so you can attach the same photos in Muse.</p><textarea id="museHandoffText" rows="12" readonly></textarea><div class="dialog-actions"><button id="copyMuseHandoffBtn" class="primary" type="button">Copy Muse Instructions</button></div><p class="muted">After Muse publishes the eBay listing, paste Muse's whole result below. The Command Center will extract the listing details for you.</p><hr><h3>4. Bring Muse's result back</h3><label>Paste Muse's entire reply<textarea id="museResultText" rows="8" placeholder="Paste the whole message from Muse here..."></textarea></label><div class="dialog-actions"><button id="parseMuseResultBtn" class="secondary" type="button">Preview Result</button><button id="saveMuseResultBtn" class="primary" type="button" disabled>Save eBay Listing</button></div><div id="museResultPreview" class="muse-result-preview" hidden></div></article>
         <article id="listingDraftPanel" class="panel wide" hidden><div class="panel-heading"><div><p class="eyebrow">AI draft</p><h3>3. Review the listing</h3></div></div><div class="form-grid"><label class="span-2">Title<input id="agentDraftTitle"></label><label>Brand<input id="agentDraftBrand"></label><label>Category<input id="agentDraftCategory"></label><label>Condition<input id="agentDraftCondition"></label><label>Suggested price<input id="agentDraftPrice" type="number" min="0" step=".01"></label><label class="span-2">Description<textarea id="agentDraftDescription" rows="7"></textarea></label><label class="span-2">Identification / research notes<textarea id="agentDraftResearch" rows="4"></textarea></label></div><div class="dialog-actions"><button id="discardAgentDraftBtn" class="secondary" type="button">Discard Draft</button><button id="approveAgentDraftBtn" class="primary" type="button">Approve & Add to Inventory</button></div></article>
       </div>
     </section>
@@ -621,6 +621,6 @@
        Row Level Security in Supabase protects the actual inventory data. -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="supabase-config.js?v=20260918-cloud1"></script>
-  <script src="app.js?v=20260921-muse1"></script>
+  <script src="app.js?v=20260921-muse2"></script>
 </body>
 </html>
