@@ -671,24 +671,67 @@ function resetBatchGroups() {
   batchListingGroups = batchListingPhotos.length ? [{ start: 0, end: batchListingPhotos.length - 1 }] : [];
 }
 
-function proposeBatchGroups() {
-  if (!batchListingPhotos.length) return;
-  const gaps = [];
-  for (let i = 0; i < batchListingPhotos.length - 1; i++) {
-    const a = Number(batchListingPhotos[i].lastModified || 0);
-    const b = Number(batchListingPhotos[i + 1].lastModified || 0);
-    if (a && b) gaps.push({ index: i, gap: Math.max(0, b - a) });
+async function batchPhotoFingerprint(file) {
+  const bitmap = await createImageBitmap(file);
+  const canvas = document.createElement("canvas");
+  canvas.width = 12; canvas.height = 12;
+  const ctx = canvas.getContext("2d", { willReadFrequently: true });
+  ctx.drawImage(bitmap, 0, 0, 12, 12);
+  bitmap.close?.();
+  const data = ctx.getImageData(0, 0, 12, 12).data;
+  const gray = [], rgb = [0,0,0];
+  for (let i=0; i<data.length; i+=4) {
+    const r=data[i], g=data[i+1], b=data[i+2];
+    gray.push((r*0.299)+(g*0.587)+(b*0.114));
+    rgb[0]+=r; rgb[1]+=g; rgb[2]+=b;
   }
-  const positive = gaps.map(x => x.gap).filter(Boolean).sort((a,b) => a-b);
-  if (!positive.length) { resetBatchGroups(); renderBatchIntake(); return; }
-  const median = positive[Math.floor(positive.length / 2)] || 0;
-  const threshold = Math.max(45000, median * 4);
-  const cuts = gaps.filter(x => x.gap >= threshold).map(x => x.index);
-  if (!cuts.length) { resetBatchGroups(); renderBatchIntake(); return; }
-  let start = 0;
-  batchListingGroups = cuts.map(end => { const group = { start, end }; start = end + 1; return group; });
-  batchListingGroups.push({ start, end: batchListingPhotos.length - 1 });
-  renderBatchIntake();
+  const avg = gray.reduce((x,y)=>x+y,0)/gray.length;
+  return {
+    hash: gray.map(v => v >= avg ? 1 : 0),
+    rgb: rgb.map(v => v/gray.length)
+  };
+}
+
+function batchVisualDistance(a,b) {
+  let hashDiff=0;
+  for(let i=0;i<a.hash.length;i++) if(a.hash[i]!==b.hash[i]) hashDiff++;
+  const hashDistance=hashDiff/a.hash.length;
+  const colorDistance=Math.sqrt(a.rgb.reduce((sum,v,i)=>sum+Math.pow(v-b.rgb[i],2),0))/(255*Math.sqrt(3));
+  return (hashDistance*0.75)+(colorDistance*0.25);
+}
+
+async function proposeBatchGroups() {
+  if (!batchListingPhotos.length) return;
+  const button=$("batchAutoGroupBtn");
+  if(button){ button.disabled=true; button.textContent="Comparing Photos…"; }
+  try {
+    const fingerprints=await Promise.all(batchListingPhotos.map(batchPhotoFingerprint));
+    const boundaries=[];
+    for(let i=0;i<batchListingPhotos.length-1;i++){
+      const visual=batchVisualDistance(fingerprints[i],fingerprints[i+1]);
+      const a=Number(batchListingPhotos[i].lastModified||0);
+      const b=Number(batchListingPhotos[i+1].lastModified||0);
+      const minutes=(a&&b)?Math.max(0,b-a)/60000:0;
+      // Visual change is primary. Time can strengthen a visual boundary, but never creates one alone.
+      const timeBoost=visual>=0.28 ? Math.min(minutes/15,1)*0.08 : 0;
+      boundaries.push({index:i,score:visual+timeBoost,visual});
+    }
+    const scores=boundaries.map(x=>x.score).sort((x,y)=>x-y);
+    const median=scores[Math.floor(scores.length/2)]||0;
+    const threshold=Math.max(0.34,median*1.35);
+    const cuts=boundaries.filter(x=>x.visual>=0.28 && x.score>=threshold).map(x=>x.index);
+    if(!cuts.length){ resetBatchGroups(); renderBatchIntake(); return; }
+    let start=0;
+    batchListingGroups=cuts.map(end=>{const group={start,end};start=end+1;return group;});
+    batchListingGroups.push({start,end:batchListingPhotos.length-1});
+    renderBatchIntake();
+  } catch(err) {
+    console.error("Batch visual grouping failed",err);
+    resetBatchGroups(); renderBatchIntake();
+    toast("Could not compare these photos. You can still split them manually.");
+  } finally {
+    if(button){ button.disabled=false; button.textContent="Suggest Item Groups"; }
+  }
 }
 
 function renderBatchIntake() {
