@@ -230,6 +230,8 @@
             <label class="span-2">Title<input id="masterDraftTitle" maxlength="160"></label>
             <label>Brand<input id="masterDraftBrand"></label>
             <label>Category<input id="masterDraftCategory"></label>
+            <label>eBay Category ID<input id="masterDraftEbayCategoryId" inputmode="numeric" pattern="[0-9]*" placeholder="Numeric category ID"></label>
+            <label>eBay Condition ID<input id="masterDraftEbayConditionId" inputmode="numeric" pattern="[0-9]*" placeholder="Example: 3000"></label>
             <label>Suggested / List Price<input id="masterDraftPrice" type="number" min="0" step=".01"></label>
             <label>Draft State<select id="masterDraftStatus"><option value="draft">Draft</option><option value="approved">Approved</option><option value="exported">Exported</option><option value="inventory">Inventory</option></select></label>
             <label class="span-2">Condition<textarea id="masterDraftCondition" rows="3"></textarea></label>
@@ -667,7 +669,7 @@
        Row Level Security in Supabase protects the actual inventory data. -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="supabase-config.js?v=20260918-cloud1"></script>
-  <script src="app.js?v=20260925-readiness1"></script>
+  <script src="app.js?v=20260925-ebaymeta2"></script>
   <script src="muse-handoff.js?v=20260925-draft1"></script>
 </body>
 </html>
