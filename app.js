@@ -133,7 +133,11 @@ function itemToDatabase(item) {
     fees: Number(item.fees || 0),
     shipping_cost: Number(item.shippingCost || 0),
     other_expenses: Number(item.otherExpenses || 0),
-    notes: item.notes || null
+    notes: item.notes || null,
+    listing_description: item.listingDescription || null,
+    item_condition: item.itemCondition || null,
+    research_notes: item.researchNotes || null,
+    draft_status: item.draftStatus || "inventory"
   };
 }
 
@@ -146,7 +150,9 @@ function databaseToItem(row) {
     saleMarketplace: row.sale_marketplace || "", saleDate: row.sale_date || "",
     salePrice: Number(row.sale_price || 0), shippingCollected: Number(row.shipping_collected || 0),
     fees: Number(row.fees || 0), shippingCost: Number(row.shipping_cost || 0),
-    otherExpenses: Number(row.other_expenses || 0), notes: row.notes || ""
+    otherExpenses: Number(row.other_expenses || 0), notes: row.notes || "",
+    listingDescription: row.listing_description || "", itemCondition: row.item_condition || "",
+    researchNotes: row.research_notes || "", draftStatus: row.draft_status || "inventory"
   };
 }
 
