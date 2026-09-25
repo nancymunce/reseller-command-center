@@ -667,6 +667,7 @@ function showView(viewId) {
 let batchListingPhotos = [];
 let batchListingGroups = [];
 let batchManualGroups = null;
+let batchSelectedPhotos = new Set();
 
 function resetBatchGroups() {
   batchManualGroups = null;
@@ -758,12 +759,25 @@ function renderBatchIntake() {
   }
   groups.innerHTML=groupIndexes.map((indexes,gi)=>`<article class="batch-group-card" data-group="${gi}">
     <div class="batch-group-heading"><strong>${gi===groupIndexes.length-1 && unassigned.length ? "Unassigned Photos" : "Item "+(gi+1)}</strong><span>${indexes.length} photo${indexes.length===1?"":"s"}</span></div>
-    <div class="batch-group-thumbs batch-drop-target" data-group="${gi}">${indexes.map(idx=>`<figure class="batch-draggable" draggable="true" data-photo="${idx}"><img src="${URL.createObjectURL(batchListingPhotos[idx])}" alt="Item ${gi+1} photo"><figcaption>${idx+1}</figcaption></figure>`).join("")}</div>
-    <div class="batch-group-actions"><button class="primary use-batch-group" type="button" data-group="${gi}">Open in Listing Agent</button></div>
+    <div class="batch-group-thumbs batch-drop-target" data-group="${gi}">${indexes.map(idx=>`<figure class="batch-draggable ${batchSelectedPhotos.has(idx) ? "selected" : ""}" draggable="true" data-photo="${idx}"><img src="${URL.createObjectURL(batchListingPhotos[idx])}" alt="Item ${gi+1} photo"><figcaption>${idx+1}</figcaption></figure>`).join("")}</div>
+    <div class="batch-group-actions"><button class="primary use-batch-group" type="button" data-group="${gi}">Open in Listing Agent</button><button class="danger ghost delete-batch-group" type="button" data-group="${gi}">Delete Group</button></div>
   </article>`).join("")+`<button id="batchAddGroupBtn" class="secondary" type="button">+ Add Empty Item Group</button>`;
 
   document.querySelectorAll(".batch-draggable").forEach(el=>{
-    el.addEventListener("dragstart",e=>{ e.dataTransfer.setData("text/plain",el.dataset.photo); e.dataTransfer.effectAllowed="move"; el.classList.add("dragging"); });
+    el.addEventListener("click",e=>{
+      const photo=Number(el.dataset.photo);
+      if(e.shiftKey || e.metaKey || e.ctrlKey){
+        if(batchSelectedPhotos.has(photo)) batchSelectedPhotos.delete(photo); else batchSelectedPhotos.add(photo);
+      } else { batchSelectedPhotos.clear(); batchSelectedPhotos.add(photo); }
+      renderBatchIntake();
+      $("batchHelp").textContent=batchSelectedPhotos.size+" photo"+(batchSelectedPhotos.size===1?"":"s")+" selected. Drag a selected photo to move them together.";
+    });
+    el.addEventListener("dragstart",e=>{
+      const photo=Number(el.dataset.photo);
+      if(!batchSelectedPhotos.has(photo)){ batchSelectedPhotos.clear(); batchSelectedPhotos.add(photo); }
+      e.dataTransfer.setData("text/plain",[...batchSelectedPhotos].join(","));
+      e.dataTransfer.effectAllowed="move"; el.classList.add("dragging");
+    });
     el.addEventListener("dragend",()=>el.classList.remove("dragging"));
   });
   document.querySelectorAll(".batch-drop-target").forEach(zone=>{
@@ -771,17 +785,28 @@ function renderBatchIntake() {
     zone.addEventListener("dragleave",()=>zone.classList.remove("drag-over"));
     zone.addEventListener("drop",e=>{
       e.preventDefault(); zone.classList.remove("drag-over");
-      const photo=Number(e.dataTransfer.getData("text/plain")), target=Number(zone.dataset.group);
-      if(!Number.isInteger(photo)||!Number.isInteger(target))return;
+      const photos=e.dataTransfer.getData("text/plain").split(",").map(Number).filter(Number.isInteger), target=Number(zone.dataset.group);
+      if(!photos.length||!Number.isInteger(target))return;
       batchManualGroups=currentBatchGroupIndexes().map(g=>[...g]);
-      batchManualGroups.forEach(g=>{const p=g.indexOf(photo);if(p>=0)g.splice(p,1);});
-      batchManualGroups[target].push(photo);
+      batchManualGroups.forEach(g=>photos.forEach(photo=>{const p=g.indexOf(photo);if(p>=0)g.splice(p,1);}));
+      batchManualGroups[target].push(...photos);
+      batchSelectedPhotos.clear();
       batchManualGroups=batchManualGroups.filter(g=>g.length);
       renderBatchIntake();
       $("batchHelp").textContent="Manual layout active. Drag any photo between item groups until it looks right. Nothing has been saved.";
     });
   });
   $("batchAddGroupBtn")?.addEventListener("click",()=>{batchManualGroups=currentBatchGroupIndexes().map(g=>[...g]);batchManualGroups.push([]);renderBatchIntake();});
+  document.querySelectorAll(".delete-batch-group").forEach(button=>button.addEventListener("click",()=>{
+    const target=Number(button.dataset.group);
+    const existing=currentBatchGroupIndexes().map(g=>[...g]);
+    const removed=existing.splice(target,1)[0]||[];
+    if(removed.length) existing.push(removed);
+    batchManualGroups=existing;
+    batchSelectedPhotos.clear();
+    renderBatchIntake();
+    $("batchHelp").textContent="Group deleted. Its photos are still available in the workspace.";
+  }));
   document.querySelectorAll(".use-batch-group").forEach(button=>button.addEventListener("click",()=>{
     const indexes=currentBatchGroupIndexes()[Number(button.dataset.group)]||[];
     listingAgentPhotos=indexes.map(i=>batchListingPhotos[i]);
