@@ -769,7 +769,9 @@ function renderBatchIntake() {
       if(e.shiftKey || e.metaKey || e.ctrlKey){
         if(batchSelectedPhotos.has(photo)) batchSelectedPhotos.delete(photo); else batchSelectedPhotos.add(photo);
       } else { batchSelectedPhotos.clear(); batchSelectedPhotos.add(photo); }
-      renderBatchIntake();
+      document.querySelectorAll(".batch-draggable").forEach(node=>{
+        node.classList.toggle("selected",batchSelectedPhotos.has(Number(node.dataset.photo)));
+      });
       $("batchHelp").textContent=batchSelectedPhotos.size+" photo"+(batchSelectedPhotos.size===1?"":"s")+" selected. Drag a selected photo to move them together.";
     });
     el.addEventListener("dragstart",e=>{
