@@ -465,3 +465,12 @@ legend { font-weight: 800; padding: 0 6px; }
 .batch-group-thumbs img{width:64px;height:64px;flex:0 0 64px;object-fit:cover;border-radius:8px}
 .batch-group-card .primary{width:100%}
 @media(max-width:620px){.batch-group-controls{align-items:stretch;flex-direction:column}.batch-group-controls label,.batch-group-controls button{width:100%}}
+
+/* Batch photo drag-and-drop correction */
+.batch-group-thumbs.batch-drop-target { min-height: 92px; border: 2px dashed transparent; border-radius: 10px; padding: 6px; transition: border-color .15s ease, background .15s ease; }
+.batch-group-thumbs.batch-drop-target.drag-over { border-color: currentColor; background: rgba(127,127,127,.08); }
+.batch-draggable { cursor: grab; margin: 0; position: relative; }
+.batch-draggable:active { cursor: grabbing; }
+.batch-draggable.dragging { opacity: .45; }
+.batch-draggable figcaption { text-align: center; font-size: .75rem; }
+#batchAddGroupBtn { margin-top: 10px; }
