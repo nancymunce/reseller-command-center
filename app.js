@@ -658,8 +658,23 @@ function renderMasterDrafts() {
   const table=$("masterDraftTable"); if(!table)return;
   const filter=$("draftStatusFilter")?.value||"";
   const drafts=items.filter(i=>["draft","approved","exported"].includes(i.draftStatus)).filter(i=>!filter||i.draftStatus===filter);
-  table.innerHTML=drafts.length?drafts.map(i=>`<tr><td><div class="item-title">${escapeHtml(i.title)}</div><div class="item-meta">${escapeHtml(i.brand||"")}</div></td><td>${escapeHtml(i.itemCondition||"—")}</td><td>${currency(i.listPrice||0)}</td><td><span class="badge">${escapeHtml(i.draftStatus)}</span></td><td><button class="secondary review-master-draft" data-id="${i.id}" type="button">Review</button></td></tr>`).join(""):'<tr><td colspan="5" class="empty">No master drafts yet. Send an item through the Listing Agent to create one.</td></tr>';
+  table.innerHTML=drafts.length?drafts.map(i=>`<tr><td><input class="ebay-draft-select" type="checkbox" data-id="${i.id}" ${i.draftStatus==="approved"?"":"disabled"} aria-label="Select ${escapeHtml(i.title)}"></td><td><div class="item-title">${escapeHtml(i.title)}</div><div class="item-meta">${escapeHtml(i.brand||"")}</div></td><td>${escapeHtml(i.itemCondition||"—")}</td><td>${currency(i.listPrice||0)}</td><td><span class="badge">${escapeHtml(i.draftStatus)}</span></td><td><button class="secondary review-master-draft" data-id="${i.id}" type="button">Review</button></td></tr>`).join(""):'<tr><td colspan="6" class="empty">No master drafts yet. Send an item through the Listing Agent to create one.</td></tr>';
   document.querySelectorAll(".review-master-draft").forEach(b=>b.addEventListener("click",()=>openMasterDraft(b.dataset.id)));
+}
+function csvCell(value){const s=String(value??"");return /[",\n\r]/.test(s)?'"'+s.replace(/"/g,'""')+'"':s;}
+function ebayConditionId(text){const t=String(text||"").toLowerCase();if(/brand new|new with|\bnew\b/.test(t))return "1000";if(/open box|new other/.test(t))return "1500";if(/seller refurbished/.test(t))return "2500";if(/used|pre-owned|preowned|vintage/.test(t))return "3000";return "";}
+function exportSelectedEbayDrafts(){
+ const ids=[...document.querySelectorAll(".ebay-draft-select:checked")].map(x=>x.dataset.id);
+ const selected=items.filter(i=>ids.includes(i.id)&&i.draftStatus==="approved");
+ if(!selected.length){toast("Select at least one approved draft");return;}
+ const missing=selected.filter(i=>!i.category||!/^[0-9]+$/.test(String(i.category).trim()));
+ if(missing.length){alert("eBay requires a numeric Category ID. Add the eBay Category ID to these drafts before export:\n\n"+missing.map(i=>"• "+i.title).join("\n"));return;}
+ const headers=["Action(SiteID=US|Country=US|Currency=USD|Version=1193|CC=UTF-8)","Custom label (SKU)","Category ID","Title","UPC","Price","Quantity","Item photo URL","Condition ID","Description","Format"];
+ const rows=selected.map(i=>["Draft",i.masterSku||"",String(i.category).trim(),i.title||"","",Number(i.listPrice||0).toFixed(2),"1","",ebayConditionId(i.itemCondition),i.listingDescription||"","FixedPrice"]);
+ const info=[["#INFO","Version=0.0.2","Template= eBay-draft-listings-template_US","","","","","","","",""],["#INFO Action and Category ID are required fields. 1) Set Action to Draft 2) Please find the category ID for your listings here: https://pages.ebay.com/sellerinformation/news/categorychanges.html","","","","","","","","","",""],["#INFO After you've successfully uploaded your draft from the Seller Hub Reports tab, complete your drafts to active listings here: https://www.ebay.com/sh/lst/drafts","","","","","","","","","",""],["#INFO","","","","","","","","","",""]];
+ const csv=[...info,headers,...rows].map(r=>r.map(csvCell).join(",")).join("\r\n");
+ const blob=new Blob([csv],{type:"text/csv;charset=utf-8"}),url=URL.createObjectURL(blob),a=document.createElement("a");a.href=url;a.download="ebay-draft-listings-"+new Date().toISOString().slice(0,10)+".csv";document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),1000);
+ toast(selected.length+" eBay draft"+(selected.length===1?"":"s")+" exported — you upload the file in Seller Hub.");
 }
 function openMasterDraft(id){
  const i=items.find(x=>x.id===id); if(!i)return;
@@ -683,6 +698,8 @@ function renderAll() {
 }
 
 $("draftStatusFilter")?.addEventListener("change",renderMasterDrafts);
+$("exportEbayDraftsBtn")?.addEventListener("click",exportSelectedEbayDrafts);
+$("selectAllApprovedDrafts")?.addEventListener("change",e=>document.querySelectorAll(".ebay-draft-select:not(:disabled)").forEach(x=>x.checked=e.target.checked));
 $("closeMasterDraftBtn")?.addEventListener("click",()=>$("masterDraftDialog")?.close());
 $("saveMasterDraftBtn")?.addEventListener("click",()=>saveMasterDraft(false));
 $("approveMasterDraftBtn")?.addEventListener("click",()=>saveMasterDraft(true));
