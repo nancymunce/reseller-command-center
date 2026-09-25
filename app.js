@@ -137,7 +137,10 @@ function itemToDatabase(item) {
     listing_description: item.listingDescription || null,
     item_condition: item.itemCondition || null,
     research_notes: item.researchNotes || null,
-    draft_status: item.draftStatus || "inventory"
+    draft_status: item.draftStatus || "inventory",
+    ebay_category_id: item.ebayCategoryId || null,
+    ebay_condition_id: item.ebayConditionId || null,
+    ebay_item_specifics: item.ebayItemSpecifics || {}
   };
 }
 
@@ -152,7 +155,8 @@ function databaseToItem(row) {
     fees: Number(row.fees || 0), shippingCost: Number(row.shipping_cost || 0),
     otherExpenses: Number(row.other_expenses || 0), notes: row.notes || "",
     listingDescription: row.listing_description || "", itemCondition: row.item_condition || "",
-    researchNotes: row.research_notes || "", draftStatus: row.draft_status || "inventory"
+    researchNotes: row.research_notes || "", draftStatus: row.draft_status || "inventory",
+    ebayCategoryId: row.ebay_category_id || "", ebayConditionId: row.ebay_condition_id || "", ebayItemSpecifics: row.ebay_item_specifics || {}
   };
 }
 
@@ -681,10 +685,10 @@ function exportSelectedEbayDrafts(){
  const ids=[...document.querySelectorAll(".ebay-draft-select:checked")].map(x=>x.dataset.id);
  const selected=items.filter(i=>ids.includes(i.id)&&i.draftStatus==="approved");
  if(!selected.length){toast("Select at least one approved draft");return;}
- const missing=selected.filter(i=>!i.category||!/^[0-9]+$/.test(String(i.category).trim()));
+ const missing=selected.filter(i=>!i.ebayCategoryId||!/^[0-9]+$/.test(String(i.ebayCategoryId).trim()));
  if(missing.length){alert("eBay requires a numeric Category ID. Add the eBay Category ID to these drafts before export:\n\n"+missing.map(i=>"• "+i.title).join("\n"));return;}
  const headers=["Action(SiteID=US|Country=US|Currency=USD|Version=1193|CC=UTF-8)","Custom label (SKU)","Category ID","Title","UPC","Price","Quantity","Item photo URL","Condition ID","Description","Format"];
- const rows=selected.map(i=>["Draft",i.masterSku||"",String(i.category).trim(),i.title||"","",Number(i.listPrice||0).toFixed(2),"1","",ebayConditionId(i.itemCondition),i.listingDescription||"","FixedPrice"]);
+ const rows=selected.map(i=>["Draft",i.masterSku||"",String(i.ebayCategoryId).trim(),i.title||"","",Number(i.listPrice||0).toFixed(2),"1","",i.ebayConditionId||ebayConditionId(i.itemCondition),i.listingDescription||"","FixedPrice"]);
  const info=[["#INFO","Version=0.0.2","Template= eBay-draft-listings-template_US","","","","","","","",""],["#INFO Action and Category ID are required fields. 1) Set Action to Draft 2) Please find the category ID for your listings here: https://pages.ebay.com/sellerinformation/news/categorychanges.html","","","","","","","","","",""],["#INFO After you've successfully uploaded your draft from the Seller Hub Reports tab, complete your drafts to active listings here: https://www.ebay.com/sh/lst/drafts","","","","","","","","","",""],["#INFO","","","","","","","","","",""]];
  const csv=[...info,headers,...rows].map(r=>r.map(csvCell).join(",")).join("\r\n");
  const blob=new Blob([csv],{type:"text/csv;charset=utf-8"}),url=URL.createObjectURL(blob),a=document.createElement("a");a.href=url;a.download="ebay-draft-listings-"+new Date().toISOString().slice(0,10)+".csv";document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),1000);
@@ -692,11 +696,11 @@ function exportSelectedEbayDrafts(){
 }
 function openMasterDraft(id){
  const i=items.find(x=>x.id===id); if(!i)return;
- $("masterDraftId").value=i.id;$("masterDraftHeading").textContent=i.title||"Review Draft";$("masterDraftTitle").value=i.title||"";$("masterDraftBrand").value=i.brand||"";$("masterDraftCategory").value=i.category||"";$("masterDraftPrice").value=Number(i.listPrice||0)||"";$("masterDraftStatus").value=i.draftStatus||"draft";$("masterDraftCondition").value=i.itemCondition||"";$("masterDraftDescription").value=i.listingDescription||"";$("masterDraftResearch").value=i.researchNotes||"";$("masterDraftDialog").showModal();
+ $("masterDraftId").value=i.id;$("masterDraftHeading").textContent=i.title||"Review Draft";$("masterDraftTitle").value=i.title||"";$("masterDraftBrand").value=i.brand||"";$("masterDraftCategory").value=i.category||"";$("masterDraftEbayCategoryId").value=i.ebayCategoryId||"";$("masterDraftEbayConditionId").value=i.ebayConditionId||ebayConditionId(i.itemCondition)||"";$("masterDraftPrice").value=Number(i.listPrice||0)||"";$("masterDraftStatus").value=i.draftStatus||"draft";$("masterDraftCondition").value=i.itemCondition||"";$("masterDraftDescription").value=i.listingDescription||"";$("masterDraftResearch").value=i.researchNotes||"";$("masterDraftDialog").showModal();
 }
 async function saveMasterDraft(approve=false){
  const id=$("masterDraftId").value,i=items.find(x=>x.id===id);if(!i)return;
- const updated={...i,title:$("masterDraftTitle").value.trim()||i.title,brand:$("masterDraftBrand").value.trim(),category:$("masterDraftCategory").value.trim(),listPrice:Number($("masterDraftPrice").value||0),itemCondition:$("masterDraftCondition").value.trim(),listingDescription:$("masterDraftDescription").value.trim(),researchNotes:$("masterDraftResearch").value.trim(),draftStatus:approve?"approved":$("masterDraftStatus").value};
+ const updated={...i,title:$("masterDraftTitle").value.trim()||i.title,brand:$("masterDraftBrand").value.trim(),category:$("masterDraftCategory").value.trim(),ebayCategoryId:$("masterDraftEbayCategoryId").value.trim(),ebayConditionId:$("masterDraftEbayConditionId").value.trim(),listPrice:Number($("masterDraftPrice").value||0),itemCondition:$("masterDraftCondition").value.trim(),listingDescription:$("masterDraftDescription").value.trim(),researchNotes:$("masterDraftResearch").value.trim(),draftStatus:approve?"approved":$("masterDraftStatus").value};
  try{const saved=await saveCloudItem(updated);items[items.findIndex(x=>x.id===id)]=saved;renderAll();$("masterDraftDialog").close();toast(approve?"Master draft approved":"Master draft saved");}catch(e){alert("Could not save master draft. "+e.message);}
 }
 
