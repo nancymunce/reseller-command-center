@@ -654,11 +654,25 @@ function renderSettings() {
 }
 
 
+function ebayDraftIssues(i){
+ const issues=[];
+ if(!String(i.title||"").trim()) issues.push("title");
+ if(!(Number(i.listPrice)>0)) issues.push("price");
+ if(!/^\d+$/.test(String(i.ebayCategoryId||"").trim())) issues.push("eBay category");
+ const condition=String(i.ebayConditionId||ebayConditionId(i.itemCondition)||"").trim();
+ if(!/^\d+$/.test(condition)) issues.push("condition");
+ if(!String(i.listingDescription||"").trim()) issues.push("description");
+ return issues;
+}
+function ebayReadiness(i){
+ const issues=ebayDraftIssues(i);
+ return issues.length?'<span class="badge">Needs: '+escapeHtml(issues.join(", "))+'</span>':'<span class="badge">Ready to Export</span>';
+}
 function renderMasterDrafts() {
   const table=$("masterDraftTable"); if(!table)return;
   const filter=$("draftStatusFilter")?.value||"";
   const drafts=items.filter(i=>["draft","approved","exported"].includes(i.draftStatus)).filter(i=>!filter||i.draftStatus===filter);
-  table.innerHTML=drafts.length?drafts.map(i=>`<tr><td><input class="ebay-draft-select" type="checkbox" data-id="${i.id}" ${i.draftStatus==="approved"?"":"disabled"} aria-label="Select ${escapeHtml(i.title)}"></td><td><div class="item-title">${escapeHtml(i.title)}</div><div class="item-meta">${escapeHtml(i.brand||"")}</div></td><td>${escapeHtml(i.itemCondition||"—")}</td><td>${currency(i.listPrice||0)}</td><td><span class="badge">${escapeHtml(i.draftStatus)}</span></td><td><button class="secondary review-master-draft" data-id="${i.id}" type="button">Review</button></td></tr>`).join(""):'<tr><td colspan="6" class="empty">No master drafts yet. Send an item through the Listing Agent to create one.</td></tr>';
+  table.innerHTML=drafts.length?drafts.map(i=>`<tr><td><input class="ebay-draft-select" type="checkbox" data-id="${i.id}" ${i.draftStatus==="approved"?"":"disabled"} aria-label="Select ${escapeHtml(i.title)}"></td><td><div class="item-title">${escapeHtml(i.title)}</div><div class="item-meta">${escapeHtml(i.brand||"")}</div></td><td>${escapeHtml(i.itemCondition||"—")}</td><td>${currency(i.listPrice||0)}</td><td><span class="badge">${escapeHtml(i.draftStatus)}</span></td><td>${ebayReadiness(i)}</td><td><button class="secondary review-master-draft" data-id="${i.id}" type="button">Review</button></td></tr>`).join(""):'<tr><td colspan="7" class="empty">No master drafts yet. Send an item through the Listing Agent to create one.</td></tr>';
   document.querySelectorAll(".review-master-draft").forEach(b=>b.addEventListener("click",()=>openMasterDraft(b.dataset.id)));
 }
 function csvCell(value){const s=String(value??"");return /[",\n\r]/.test(s)?'"'+s.replace(/"/g,'""')+'"':s;}
