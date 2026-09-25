@@ -446,3 +446,22 @@ legend { font-weight: 800; padding: 0 6px; }
 .agent-actions{display:flex;gap:10px;flex-wrap:wrap}.agent-actions button{flex:1;min-width:160px}#museHandoffText{width:100%;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;line-height:1.45}.muted{color:var(--muted)}
 
 #museHandoffPanel hr{border:0;border-top:1px solid var(--border);margin:24px 0}.muse-result-preview{margin-top:14px;padding:14px;border:1px solid var(--border);border-radius:12px;background:var(--surface-soft)}
+
+
+/* Batch photo intake — staged locally before any inventory write. */
+.batch-intake-panel{margin-bottom:20px;border-left:4px solid var(--accent)}
+.batch-dropzone{min-height:130px}
+.batch-photo-tray{display:grid;grid-template-columns:repeat(auto-fill,minmax(92px,1fr));gap:10px;margin:14px 0}
+.batch-photo-tray figure{margin:0;position:relative}
+.batch-photo-tray img{width:100%;aspect-ratio:1;object-fit:cover;border-radius:10px}
+.batch-photo-tray figcaption{position:absolute;right:6px;bottom:6px;background:rgba(21,63,58,.88);color:#fff;border-radius:999px;min-width:25px;text-align:center;padding:3px 7px;font-size:.75rem;font-weight:800}
+.batch-group-controls{display:flex;align-items:end;gap:10px;flex-wrap:wrap;margin:14px 0}
+.batch-group-controls label{display:grid;gap:6px;font-weight:700;min-width:220px}
+.batch-groups{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:14px;margin-top:16px}
+.batch-group-card{border:1px solid var(--line);border-radius:14px;padding:14px;background:var(--bg)}
+.batch-group-heading{display:flex;justify-content:space-between;gap:10px;margin-bottom:10px}
+.batch-group-heading span{color:var(--muted);font-size:.85rem}
+.batch-group-thumbs{display:flex;gap:6px;overflow-x:auto;margin-bottom:12px;padding-bottom:3px}
+.batch-group-thumbs img{width:64px;height:64px;flex:0 0 64px;object-fit:cover;border-radius:8px}
+.batch-group-card .primary{width:100%}
+@media(max-width:620px){.batch-group-controls{align-items:stretch;flex-direction:column}.batch-group-controls label,.batch-group-controls button{width:100%}}
