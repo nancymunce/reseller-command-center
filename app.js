@@ -748,9 +748,16 @@ function renderBatchIntake() {
   tray.innerHTML=batchListingPhotos.map((file,i)=>`<figure><img src="${URL.createObjectURL(file)}" alt="Batch photo ${i+1}"><figcaption>${i+1}</figcaption></figure>`).join("");
   controls.hidden=batchListingPhotos.length<2;
   split.innerHTML=batchListingPhotos.slice(0,-1).map((_,i)=>`<option value="${i}">${i+1}</option>`).join("");
-  const groupIndexes=currentBatchGroupIndexes();
+  let groupIndexes=currentBatchGroupIndexes();
+  const assigned=new Set(groupIndexes.flat());
+  const unassigned=batchListingPhotos.map((_,i)=>i).filter(i=>!assigned.has(i));
+  if(unassigned.length){
+    batchManualGroups=groupIndexes.map(g=>[...g]);
+    batchManualGroups.push(unassigned);
+    groupIndexes=batchManualGroups;
+  }
   groups.innerHTML=groupIndexes.map((indexes,gi)=>`<article class="batch-group-card" data-group="${gi}">
-    <div class="batch-group-heading"><strong>Item ${gi+1}</strong><span>${indexes.length} photo${indexes.length===1?"":"s"}</span></div>
+    <div class="batch-group-heading"><strong>${gi===groupIndexes.length-1 && unassigned.length ? "Unassigned Photos" : "Item "+(gi+1)}</strong><span>${indexes.length} photo${indexes.length===1?"":"s"}</span></div>
     <div class="batch-group-thumbs batch-drop-target" data-group="${gi}">${indexes.map(idx=>`<figure class="batch-draggable" draggable="true" data-photo="${idx}"><img src="${URL.createObjectURL(batchListingPhotos[idx])}" alt="Item ${gi+1} photo"><figcaption>${idx+1}</figcaption></figure>`).join("")}</div>
     <div class="batch-group-actions"><button class="primary use-batch-group" type="button" data-group="${gi}">Open in Listing Agent</button></div>
   </article>`).join("")+`<button id="batchAddGroupBtn" class="secondary" type="button">+ Add Empty Item Group</button>`;
