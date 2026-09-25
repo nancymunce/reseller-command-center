@@ -743,7 +743,7 @@ function renderBatchIntake() {
   split.innerHTML = batchListingPhotos.slice(0, -1).map((_, i) => `<option value="${i}">${i + 1}</option>`).join("");
   groups.innerHTML = batchListingGroups.map((group, gi) => {
     const photos = batchListingPhotos.slice(group.start, group.end + 1);
-    return `<article class="batch-group-card"><div class="batch-group-heading"><strong>Item ${gi + 1}</strong><span>${photos.length} photo${photos.length === 1 ? "" : "s"}</span></div><div class="batch-group-thumbs">${photos.map((file, i) => `<img src="${URL.createObjectURL(file)}" alt="Item ${gi + 1}, photo ${i + 1}">`).join("")}</div><button class="primary use-batch-group" type="button" data-group="${gi}">Open in Listing Agent</button></article>`;
+    return `<article class="batch-group-card"><div class="batch-group-heading"><strong>Item ${gi + 1}</strong><span>${photos.length} photo${photos.length === 1 ? "" : "s"}</span></div><div class="batch-group-thumbs">${photos.map((file, i) => `<img src="${URL.createObjectURL(file)}" alt="Item ${gi + 1}, photo ${i + 1}">`).join("")}</div><div class="batch-group-actions"><button class="primary use-batch-group" type="button" data-group="${gi}">Open in Listing Agent</button><button class="secondary manual-batch-group" type="button" data-group="${gi}">Fix Manually</button></div></article>`;
   }).join("");
   document.querySelectorAll(".use-batch-group").forEach(button => button.addEventListener("click", () => {
     const group = batchListingGroups[Number(button.dataset.group)];
@@ -753,6 +753,17 @@ function renderBatchIntake() {
     $("listingAgentStatus").textContent = "Item group ready";
     $("listingAgentMessage").textContent = "This group's photos are loaded below. Add any business details you know, then create the master listing draft.";
     $("listingPhotoPreview").scrollIntoView({ behavior: "smooth", block: "center" });
+  }));
+  document.querySelectorAll(".manual-batch-group").forEach(button => button.addEventListener("click", () => {
+    const group = batchListingGroups[Number(button.dataset.group)];
+    if (!group) return;
+    batchListingGroups = [{ start: group.start, end: group.end }];
+    const subset = batchListingPhotos.slice(group.start, group.end + 1);
+    batchListingPhotos = subset;
+    resetBatchGroups();
+    renderBatchIntake();
+    $("batchHelp").textContent = "Manual correction mode: these are the photos from the incorrect suggestion. Use Split Here to make the correct item groups. Nothing has been saved.";
+    $("batchGroupControls")?.scrollIntoView({ behavior: "smooth", block: "center" });
   }));
 }
 
