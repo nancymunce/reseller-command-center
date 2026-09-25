@@ -898,8 +898,27 @@ document.querySelectorAll(".tab").forEach(tab => tab.addEventListener("click", (
 document.querySelectorAll("[data-jump]").forEach(btn => btn.addEventListener("click", () => showView(btn.dataset.jump)));
 
 $("addItemBtn").addEventListener("click", () => openItemDialog());
+function batchPhotoSortKey(file) {
+  const name = file.name || "";
+  const stem = name.replace(/\.[^.]+$/, "");
+  const numericParts = stem.match(/\d+/g) || [];
+  const lastNumber = numericParts.length ? Number(numericParts[numericParts.length - 1]) : Number.NaN;
+  return { name, lastNumber, modified: Number(file.lastModified || 0) };
+}
+
+function stableSortBatchPhotos(files) {
+  return files.map((file, originalIndex) => ({ file, originalIndex, key: batchPhotoSortKey(file) }))
+    .sort((a, b) => {
+      const aHasNumber = Number.isFinite(a.key.lastNumber), bHasNumber = Number.isFinite(b.key.lastNumber);
+      if (aHasNumber && bHasNumber && a.key.lastNumber !== b.key.lastNumber) return a.key.lastNumber - b.key.lastNumber;
+      if (a.key.modified && b.key.modified && a.key.modified !== b.key.modified) return a.key.modified - b.key.modified;
+      const byName = a.key.name.localeCompare(b.key.name, undefined, { numeric: true, sensitivity: "base" });
+      return byName || a.originalIndex - b.originalIndex;
+    }).map(entry => entry.file);
+}
+
 $("batchListingPhotos")?.addEventListener("change", e => {
-  batchListingPhotos = [...e.target.files];
+  batchListingPhotos = stableSortBatchPhotos([...e.target.files]);
   resetBatchGroups();
   renderBatchIntake();
 });
