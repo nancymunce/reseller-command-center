@@ -671,6 +671,26 @@ function resetBatchGroups() {
   batchListingGroups = batchListingPhotos.length ? [{ start: 0, end: batchListingPhotos.length - 1 }] : [];
 }
 
+function proposeBatchGroups() {
+  if (!batchListingPhotos.length) return;
+  const gaps = [];
+  for (let i = 0; i < batchListingPhotos.length - 1; i++) {
+    const a = Number(batchListingPhotos[i].lastModified || 0);
+    const b = Number(batchListingPhotos[i + 1].lastModified || 0);
+    if (a && b) gaps.push({ index: i, gap: Math.max(0, b - a) });
+  }
+  const positive = gaps.map(x => x.gap).filter(Boolean).sort((a,b) => a-b);
+  if (!positive.length) { resetBatchGroups(); renderBatchIntake(); return; }
+  const median = positive[Math.floor(positive.length / 2)] || 0;
+  const threshold = Math.max(45000, median * 4);
+  const cuts = gaps.filter(x => x.gap >= threshold).map(x => x.index);
+  if (!cuts.length) { resetBatchGroups(); renderBatchIntake(); return; }
+  let start = 0;
+  batchListingGroups = cuts.map(end => { const group = { start, end }; start = end + 1; return group; });
+  batchListingGroups.push({ start, end: batchListingPhotos.length - 1 });
+  renderBatchIntake();
+}
+
 function renderBatchIntake() {
   const tray = $("batchPhotoTray"), groups = $("batchGroups"), controls = $("batchGroupControls"), count = $("batchPhotoCount"), split = $("batchSplitAfter");
   if (!tray || !groups || !controls || !count || !split) return;
@@ -923,6 +943,7 @@ $("batchListingPhotos")?.addEventListener("change", e => {
   renderBatchIntake();
 });
 $("batchSplitBtn")?.addEventListener("click", () => splitBatchAfter(Number($("batchSplitAfter").value)));
+$("batchAutoGroupBtn")?.addEventListener("click", proposeBatchGroups);
 $("batchOneGroupBtn")?.addEventListener("click", () => { resetBatchGroups(); renderBatchIntake(); });
 $("batchClearBtn")?.addEventListener("click", () => {
   batchListingPhotos = []; batchListingGroups = []; $("batchListingPhotos").value = ""; renderBatchIntake();
