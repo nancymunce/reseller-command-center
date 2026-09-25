@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Reseller Command Center</title>
-  <link rel="stylesheet" href="styles.css?v=20260921-muse2" />
+  <link rel="stylesheet" href="styles.css?v=20260924-batch1" />
 </head>
 <body>
   <section id="authGate" class="auth-gate">
@@ -217,6 +217,25 @@
 
     <section id="listing-agent" class="view">
       <div class="section-toolbar"><div><p class="eyebrow">Photo-first workflow</p><h2>Listing Agent</h2><p class="section-intro">Start with the item, not a form. Add several clear photos and the agent will use them to build a draft for your approval.</p></div></div>
+
+      <article class="panel batch-intake-panel">
+        <div class="panel-heading">
+          <div><p class="eyebrow">Death-pile mode</p><h3>Batch Photo Intake</h3></div>
+          <span id="batchPhotoCount" class="badge">0 photos</span>
+        </div>
+        <p class="section-intro">Drop in one big batch of photos. Keep each item's photos together when you shoot; the Command Center will stage them so you can quickly split the batch into item groups before analysis.</p>
+        <label class="listing-dropzone batch-dropzone" for="batchListingPhotos"><strong>📸 Choose a whole batch</strong><span>Select photos for many items at once — no filenames or labels required.</span><input id="batchListingPhotos" type="file" accept="image/*" multiple hidden></label>
+        <div id="batchPhotoTray" class="batch-photo-tray"></div>
+        <div id="batchGroupControls" class="batch-group-controls" hidden>
+          <label>Start a new item after photo <select id="batchSplitAfter"></select></label>
+          <button id="batchSplitBtn" class="secondary" type="button">Split Here</button>
+          <button id="batchOneGroupBtn" class="secondary" type="button">Make One Item</button>
+          <button id="batchClearBtn" class="danger ghost" type="button">Clear Batch</button>
+        </div>
+        <div id="batchGroups" class="batch-groups"></div>
+        <p id="batchHelp" class="muted">Nothing is uploaded or saved yet. This first version keeps the grouping step reversible and local to your browser.</p>
+      </article>
+
       <div class="listing-agent-grid">
         <article class="panel listing-photo-panel"><h3>1. Add item photos</h3><label class="listing-dropzone" for="listingAgentPhotos"><strong>📷 Choose Photos</strong><span>Front, back, maker's mark, label, damage, and anything distinctive</span><input id="listingAgentPhotos" type="file" accept="image/*" multiple hidden></label><div id="listingPhotoPreview" class="listing-photo-preview"></div><div class="agent-actions"><button id="sendToMuseBtn" class="primary" type="button" disabled>Send to Muse</button><button id="analyzeListingPhotosBtn" class="secondary" type="button" disabled>Use My AI (optional)</button></div></article>
         <article class="panel"><h3>2. What you know</h3><div class="form-grid"><label>What did you pay?<input id="agentCost" type="number" min="0" step=".01" placeholder="Leave blank if unknown"></label><label>Cost status<select id="agentCostStatus"><option value="unknown">Unknown</option><option value="known">Known</option><option value="free">Free</option></select></label><label>Where did you get it?<input id="agentSource" placeholder="Goodwill, estate sale, free..."></label><label>Storage location<input id="agentStorage" placeholder="BIN A12"></label><label class="span-2">Anything I should know?<textarea id="agentNotes" rows="3" placeholder="Set of 4, small chip on rim, tested and working..."></textarea></label></div></article>
