@@ -474,3 +474,6 @@ legend { font-weight: 800; padding: 0 6px; }
 .batch-draggable.dragging { opacity: .45; }
 .batch-draggable figcaption { text-align: center; font-size: .75rem; }
 #batchAddGroupBtn { margin-top: 10px; }
+
+.batch-draggable.selected { outline: 3px solid currentColor; outline-offset: 2px; border-radius: 8px; }
+.batch-group-actions { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
