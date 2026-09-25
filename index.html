@@ -221,7 +221,7 @@
         <div><p class="eyebrow">Listing pipeline</p><h2>Master Listing Drafts</h2><p class="section-intro">Review the canonical listing once. Approve it here before preparing marketplace-specific exports.</p></div>
         <div class="filters"><button class="primary" id="exportEbayDraftsBtn" type="button">Export Selected to eBay</button><select id="draftStatusFilter"><option value="">All draft states</option><option value="draft">Draft</option><option value="approved">Approved</option><option value="exported">Exported</option></select></div>
       </div>
-      <div class="panel"><div class="table-wrap"><table><thead><tr><th><input id="selectAllApprovedDrafts" type="checkbox" aria-label="Select all approved drafts"></th><th>Item</th><th>Condition</th><th>Suggested Price</th><th>Draft State</th><th></th></tr></thead><tbody id="masterDraftTable"></tbody></table></div></div>
+      <div class="panel"><div class="table-wrap"><table><thead><tr><th><input id="selectAllApprovedDrafts" type="checkbox" aria-label="Select all approved drafts"></th><th>Item</th><th>Condition</th><th>Suggested Price</th><th>Draft State</th><th>eBay Readiness</th><th></th></tr></thead><tbody id="masterDraftTable"></tbody></table></div></div>
       <dialog id="masterDraftDialog" class="item-dialog">
         <form id="masterDraftForm" method="dialog">
           <div class="dialog-header"><div><p class="eyebrow">Master listing</p><h2 id="masterDraftHeading">Review Draft</h2></div><button type="button" class="icon-button" id="closeMasterDraftBtn" aria-label="Close">×</button></div>
@@ -667,7 +667,7 @@
        Row Level Security in Supabase protects the actual inventory data. -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="supabase-config.js?v=20260918-cloud1"></script>
-  <script src="app.js?v=20260925-ebaydraft1"></script>
+  <script src="app.js?v=20260925-readiness1"></script>
   <script src="muse-handoff.js?v=20260925-draft1"></script>
 </body>
 </html>
