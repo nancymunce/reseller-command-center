@@ -664,6 +664,46 @@ function showView(viewId) {
 }
 
 
+let batchListingPhotos = [];
+let batchListingGroups = [];
+
+function resetBatchGroups() {
+  batchListingGroups = batchListingPhotos.length ? [{ start: 0, end: batchListingPhotos.length - 1 }] : [];
+}
+
+function renderBatchIntake() {
+  const tray = $("batchPhotoTray"), groups = $("batchGroups"), controls = $("batchGroupControls"), count = $("batchPhotoCount"), split = $("batchSplitAfter");
+  if (!tray || !groups || !controls || !count || !split) return;
+  count.textContent = batchListingPhotos.length + " photo" + (batchListingPhotos.length === 1 ? "" : "s");
+  tray.innerHTML = batchListingPhotos.map((file, i) => `<figure><img src="${URL.createObjectURL(file)}" alt="Batch photo ${i + 1}"><figcaption>${i + 1}</figcaption></figure>`).join("");
+  controls.hidden = batchListingPhotos.length < 2;
+  split.innerHTML = batchListingPhotos.slice(0, -1).map((_, i) => `<option value="${i}">${i + 1}</option>`).join("");
+  groups.innerHTML = batchListingGroups.map((group, gi) => {
+    const photos = batchListingPhotos.slice(group.start, group.end + 1);
+    return `<article class="batch-group-card"><div class="batch-group-heading"><strong>Item ${gi + 1}</strong><span>${photos.length} photo${photos.length === 1 ? "" : "s"}</span></div><div class="batch-group-thumbs">${photos.map((file, i) => `<img src="${URL.createObjectURL(file)}" alt="Item ${gi + 1}, photo ${i + 1}">`).join("")}</div><button class="primary use-batch-group" type="button" data-group="${gi}">Open in Listing Agent</button></article>`;
+  }).join("");
+  document.querySelectorAll(".use-batch-group").forEach(button => button.addEventListener("click", () => {
+    const group = batchListingGroups[Number(button.dataset.group)];
+    if (!group) return;
+    listingAgentPhotos = batchListingPhotos.slice(group.start, group.end + 1);
+    renderListingAgentPhotos();
+    $("listingAgentStatus").textContent = "Item group ready";
+    $("listingAgentMessage").textContent = "This group's photos are loaded below. Add any business details you know, then create the master listing draft.";
+    $("listingPhotoPreview").scrollIntoView({ behavior: "smooth", block: "center" });
+  }));
+}
+
+function splitBatchAfter(index) {
+  if (!batchListingPhotos.length || index < 0 || index >= batchListingPhotos.length - 1) return;
+  const cuts = new Set([index]);
+  batchListingGroups.forEach(group => { if (group.end < batchListingPhotos.length - 1) cuts.add(group.end); });
+  const sorted = [...cuts].sort((a, b) => a - b);
+  let start = 0;
+  batchListingGroups = sorted.map(end => { const group = { start, end }; start = end + 1; return group; });
+  batchListingGroups.push({ start, end: batchListingPhotos.length - 1 });
+  renderBatchIntake();
+}
+
 let listingAgentPhotos = [];
 function renderListingAgentPhotos() {
   const box=$("listingPhotoPreview"), button=$("analyzeListingPhotosBtn"); if(!box||!button)return;
@@ -858,6 +898,16 @@ document.querySelectorAll(".tab").forEach(tab => tab.addEventListener("click", (
 document.querySelectorAll("[data-jump]").forEach(btn => btn.addEventListener("click", () => showView(btn.dataset.jump)));
 
 $("addItemBtn").addEventListener("click", () => openItemDialog());
+$("batchListingPhotos")?.addEventListener("change", e => {
+  batchListingPhotos = [...e.target.files];
+  resetBatchGroups();
+  renderBatchIntake();
+});
+$("batchSplitBtn")?.addEventListener("click", () => splitBatchAfter(Number($("batchSplitAfter").value)));
+$("batchOneGroupBtn")?.addEventListener("click", () => { resetBatchGroups(); renderBatchIntake(); });
+$("batchClearBtn")?.addEventListener("click", () => {
+  batchListingPhotos = []; batchListingGroups = []; $("batchListingPhotos").value = ""; renderBatchIntake();
+});
 $("listingAgentPhotos")?.addEventListener("change", e => { listingAgentPhotos=[...e.target.files]; renderListingAgentPhotos(); });
 function buildMuseHandoff(){
   const costStatus=$("agentCostStatus").value, cost=$("agentCost").value;
