@@ -820,10 +820,10 @@ async function saveMasterDraft(approve=false){
 }
 
 async function approveMasterDraftAndNext(){
- const current=$("masterDraftId").value;
+ const current=$("masterDraftId").value,next=nextReviewDraftId(current);
  const saved=await saveMasterDraft(true);if(!saved)return;
- const next=nextReviewDraftId(current);
- if(next&&next!==current)openMasterDraft(next);else toast("Draft approved — review queue is clear.");
+ const remaining=next&&next!==current?next:nextReviewDraftId("");
+ if(remaining&&remaining!==current)openMasterDraft(remaining);else toast("Draft approved — review queue is clear.");
 }
 async function saveMasterDraftAndNext(){
  const current=$("masterDraftId").value,next=nextReviewDraftId(current);
