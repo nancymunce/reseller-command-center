@@ -234,8 +234,9 @@
             <label>eBay Condition ID<div class="inline-field"><input id="masterDraftEbayConditionId" inputmode="numeric" pattern="[0-9]*" placeholder="Example: 3000"><button class="secondary" id="suggestEbayConditionBtn" type="button">Suggest</button></div></label>
             <label>Suggested / List Price<input id="masterDraftPrice" type="number" min="0" step=".01"></label>
             <label>Draft State<select id="masterDraftStatus"><option value="draft">Draft</option><option value="approved">Approved</option><option value="exported">Exported</option><option value="inventory">Inventory</option></select></label>
+            <div class="span-2"><div class="panel-heading"><div><strong>Listing Photos</strong><div class="item-meta">First photo is primary. Reorder with the arrows.</div></div><label class="secondary file-label">Add Photos<input id="masterDraftPhotoUpload" type="file" accept="image/*" multiple hidden></label></div><div id="masterDraftPhotos" class="batch-photo-tray"></div></div>
             <label class="span-2">Condition<textarea id="masterDraftCondition" rows="3"></textarea></label>
-            <label class="span-2">Item Specifics <button class="text-button" id="suggestSpecificsBtn" type="button">Suggest Fields</button><textarea id="masterDraftItemSpecifics" rows="7" placeholder="Brand: Example&#10;Color: Blue&#10;Material: Ceramic&#10;Pattern: Floral"></textarea><small>One per line as Name: Value. These stay structured for marketplace-specific use later.</small></label>
+            <div class="span-2"><div class="panel-heading"><strong>Item Specifics</strong><div><button class="text-button" id="suggestSpecificsBtn" type="button">Suggest Fields</button><button class="text-button" id="addSpecificRowBtn" type="button">+ Add Field</button></div></div><div id="masterDraftSpecificsRows" class="specifics-editor"></div><textarea id="masterDraftItemSpecifics" hidden></textarea><small>Structured attributes stay with the master item for marketplace-specific use later.</small></div>
             <label class="span-2">Description<textarea id="masterDraftDescription" rows="8"></textarea></label>
             <label class="span-2">Private Research Notes<textarea id="masterDraftResearch" rows="6"></textarea></label>
           </div>
@@ -670,7 +671,7 @@
        Row Level Security in Supabase protects the actual inventory data. -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="supabase-config.js?v=20260918-cloud1"></script>
-  <script src="app.js?v=20260925-draftqueue1"></script>
+  <script src="app.js?v=20260925-specificsphotos2"></script>
   <script src="muse-handoff.js?v=20260925-draft1"></script>
 </body>
 </html>
