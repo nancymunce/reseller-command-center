@@ -697,8 +697,8 @@ function exportSelectedEbayDrafts(){
  const ids=[...document.querySelectorAll(".ebay-draft-select:checked")].map(x=>x.dataset.id);
  const selected=items.filter(i=>ids.includes(i.id)&&i.draftStatus==="approved");
  if(!selected.length){toast("Select at least one approved draft");return;}
- const missing=selected.filter(i=>!i.ebayCategoryId||!/^[0-9]+$/.test(String(i.ebayCategoryId).trim()));
- if(missing.length){alert("eBay requires a numeric Category ID. Add the eBay Category ID to these drafts before export:\n\n"+missing.map(i=>"• "+i.title).join("\n"));return;}
+ const blocked=selected.map(i=>({i,issues:ebayDraftIssues(i)})).filter(x=>x.issues.length);
+ if(blocked.length){alert("These approved drafts still need attention before eBay export:\n\n"+blocked.map(x=>"• "+x.i.title+": "+x.issues.join(", ")).join("\n"));return;}
  const headers=["Action(SiteID=US|Country=US|Currency=USD|Version=1193|CC=UTF-8)","Custom label (SKU)","Category ID","Title","UPC","Price","Quantity","Item photo URL","Condition ID","Description","Format"];
  const rows=selected.map(i=>["Draft",i.masterSku||"",String(i.ebayCategoryId).trim(),i.title||"","",Number(i.listPrice||0).toFixed(2),"1","",i.ebayConditionId||ebayConditionId(i.itemCondition),i.listingDescription||"","FixedPrice"]);
  const info=[["#INFO","Version=0.0.2","Template= eBay-draft-listings-template_US","","","","","","","",""],["#INFO Action and Category ID are required fields. 1) Set Action to Draft 2) Please find the category ID for your listings here: https://pages.ebay.com/sellerinformation/news/categorychanges.html","","","","","","","","","",""],["#INFO After you've successfully uploaded your draft from the Seller Hub Reports tab, complete your drafts to active listings here: https://www.ebay.com/sh/lst/drafts","","","","","","","","","",""],["#INFO","","","","","","","","","",""]];
@@ -743,6 +743,11 @@ function openMasterDraft(id){
 }
 async function saveMasterDraft(approve=false){
  const id=$("masterDraftId").value,i=items.find(x=>x.id===id);if(!i)return;
+ if(approve){
+   const probe={...i,title:$("masterDraftTitle").value.trim(),listPrice:Number($("masterDraftPrice").value||0),ebayCategoryId:$("masterDraftEbayCategoryId").value.trim(),ebayConditionId:$("masterDraftEbayConditionId").value.trim(),itemCondition:$("masterDraftCondition").value.trim(),listingDescription:$("masterDraftDescription").value.trim()};
+   const issues=ebayDraftIssues(probe);
+   if(issues.length){alert("This draft cannot be approved yet. Please complete: "+issues.join(", "));return;}
+ }
  if(approve){const probe={...i,title:$("masterDraftTitle").value.trim(),listPrice:Number($("masterDraftPrice").value||0),ebayCategoryId:$("masterDraftEbayCategoryId").value.trim(),ebayConditionId:$("masterDraftEbayConditionId").value.trim(),itemCondition:$("masterDraftCondition").value.trim(),listingDescription:$("masterDraftDescription").value.trim()};const issues=ebayDraftIssues(probe);if(issues.length){alert("This draft cannot be approved yet. Please complete: "+issues.join(", "));return;}}
  const updated={...i,title:$("masterDraftTitle").value.trim()||i.title,brand:$("masterDraftBrand").value.trim(),category:$("masterDraftCategory").value.trim(),ebayCategoryId:$("masterDraftEbayCategoryId").value.trim(),ebayConditionId:$("masterDraftEbayConditionId").value.trim(),ebayItemSpecifics:specificsTextToObject($("masterDraftItemSpecifics").value),listPrice:Number($("masterDraftPrice").value||0),itemCondition:$("masterDraftCondition").value.trim(),listingDescription:$("masterDraftDescription").value.trim(),researchNotes:$("masterDraftResearch").value.trim(),draftStatus:approve?"approved":$("masterDraftStatus").value};
  try{const saved=await saveCloudItem(updated);items[items.findIndex(x=>x.id===id)]=saved;renderAll();$("masterDraftDialog").close();toast(approve?"Master draft approved":"Master draft saved");}catch(e){alert("Could not save master draft. "+e.message);}
