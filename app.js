@@ -659,6 +659,44 @@ function renderSettings() {
 }
 
 
+function specificsObjectToText(obj){return Object.entries(obj||{}).map(([k,v])=>k+": "+(v??"")).join("\n");}
+function specificsTextToObject(text){const out={};String(text||"").split(/\r?\n/).forEach(line=>{const p=line.indexOf(":");if(p<1)return;const k=line.slice(0,p).trim(),v=line.slice(p+1).trim();if(k&&v)out[k]=v;});return out;}
+function suggestedSpecificsForDraft(){
+ const text=[$("masterDraftTitle")?.value,$("masterDraftCategory")?.value,$("masterDraftDescription")?.value].join(" ").toLowerCase();
+ if(/shirt|dress|jacket|coat|jean|pants|skirt|sweater|blouse|shoe|boot|clothing|apparel/.test(text))return ["Brand","Department","Type","Size","Size Type","Color","Material","Pattern","Style","Sleeve Length","Features","Measurements"];
+ if(/glass|ceramic|vase|bowl|plate|mug|decor|home|figurine|pottery|crystal/.test(text))return ["Brand","Type","Color","Material","Pattern","Style","Era","Original/Reproduction","Features","Dimensions"];
+ return ["Brand","Type","Color","Material","Model","Style","Features","Dimensions"];
+}
+function addSuggestedSpecifics(){
+ const area=$("masterDraftItemSpecifics");if(!area)return;
+ const existing=String(area.value||"").split(/\r?\n/).map(x=>x.trim()).filter(Boolean),names=new Set(existing.map(x=>x.split(":")[0].trim().toLowerCase()));
+ const add=suggestedSpecificsForDraft().filter(k=>!names.has(k.toLowerCase())).map(k=>k+": ");
+ area.value=[...existing,...add].join("\n");renderSpecificsEditorFromTextarea();toast(add.length?add.length+" suggested fields added":"Suggested fields are already present.");
+}
+function renderSpecificsEditorFromTextarea(){
+ const box=$("masterDraftSpecificsRows"),area=$("masterDraftItemSpecifics");if(!box||!area)return;
+ const rows=String(area.value||"").split(/\r?\n/).map(line=>{const p=line.indexOf(":");return p>0?[line.slice(0,p).trim(),line.slice(p+1).trim()]:[line.trim(),""];}).filter(([k])=>k);
+ box.innerHTML=rows.map(([k,v],idx)=>'<div class="specific-row"><input class="specific-name" value="'+escapeHtml(k)+'" placeholder="Field"><input class="specific-value" value="'+escapeHtml(v)+'" placeholder="Value"><button type="button" class="text-button remove-specific" data-i="'+idx+'">Remove</button></div>').join("");
+ box.querySelectorAll("input").forEach(x=>x.addEventListener("input",syncSpecificsTextareaFromRows));
+ box.querySelectorAll(".remove-specific").forEach(b=>b.addEventListener("click",()=>{b.closest(".specific-row").remove();syncSpecificsTextareaFromRows();}));
+}
+function syncSpecificsTextareaFromRows(){
+ const area=$("masterDraftItemSpecifics"),box=$("masterDraftSpecificsRows");if(!area||!box)return;
+ area.value=[...box.querySelectorAll(".specific-row")].map(r=>{const k=r.querySelector(".specific-name").value.trim(),v=r.querySelector(".specific-value").value.trim();return k?k+": "+v:"";}).filter(Boolean).join("\n");
+}
+function addSpecificRow(){const area=$("masterDraftItemSpecifics");if(!area)return;area.value+=(area.value.trim()?"\n":"")+"Field: ";renderSpecificsEditorFromTextarea();const rows=$("masterDraftSpecificsRows")?.querySelectorAll(".specific-row");rows?.[rows.length-1]?.querySelector(".specific-name")?.select();}
+async function currentUserId(){const {data}=await supabaseClient.auth.getUser();return data?.user?.id||"";}
+async function uploadListingPhotos(itemId,files){if(!files?.length)return[];const uid=await currentUserId();if(!uid)throw new Error("You must be signed in to save photos.");const paths=[];for(let n=0;n<files.length;n++){const f=files[n],ext=(f.name.split(".").pop()||"jpg").toLowerCase(),path=uid+"/"+itemId+"/"+Date.now()+"-"+n+"."+ext;const {error}=await supabaseClient.storage.from("listing-photos").upload(path,f,{contentType:f.type||"image/jpeg",upsert:false});if(error)throw error;paths.push(path);}return paths;}
+async function signedListingPhotoUrl(path){const {data,error}=await supabaseClient.storage.from("listing-photos").createSignedUrl(path,3600);if(error)throw error;return data.signedUrl;}
+async function removeListingPhoto(path){const {error}=await supabaseClient.storage.from("listing-photos").remove([path]);if(error)throw error;}
+async function renderMasterDraftPhotos(item){
+ const box=$("masterDraftPhotos");if(!box)return;box.innerHTML="";
+ const paths=item.listingPhotoPaths||[];if(!paths.length){box.innerHTML='<span class="item-meta">No persistent photos saved yet.</span>';return;}
+ for(const [idx,path] of paths.entries()){try{const url=await signedListingPhotoUrl(path),fig=document.createElement("figure");fig.className="master-draft-photo";fig.innerHTML='<img src="'+url+'" alt="Listing photo '+(idx+1)+'"><figcaption>'+(idx===0?"Primary photo":"Photo "+(idx+1))+'</figcaption><div><button type="button" class="text-button move-photo-left" '+(idx===0?"disabled":"")+'>←</button><button type="button" class="text-button move-photo-right" '+(idx===paths.length-1?"disabled":"")+'>→</button><button type="button" class="text-button remove-photo">Remove</button></div>';
+ const move=async(to)=>{const next=[...paths],[p]=next.splice(idx,1);next.splice(to,0,p);const saved=await saveCloudItem({...item,listingPhotoPaths:next});items[items.findIndex(x=>x.id===item.id)]=saved;renderMasterDraftPhotos(saved);};
+ fig.querySelector(".move-photo-left")?.addEventListener("click",()=>move(idx-1));fig.querySelector(".move-photo-right")?.addEventListener("click",()=>move(idx+1));fig.querySelector(".remove-photo").addEventListener("click",async()=>{if(!confirm("Remove this photo from the listing?"))return;await removeListingPhoto(path);const saved=await saveCloudItem({...item,listingPhotoPaths:paths.filter(p=>p!==path)});items[items.findIndex(x=>x.id===item.id)]=saved;renderMasterDraftPhotos(saved);toast("Photo removed");});box.appendChild(fig);}catch(e){console.warn("Could not load listing photo",e);}}
+}
+async function addPhotosToMasterDraft(files){const id=$("masterDraftId").value,item=items.find(x=>x.id===id);if(!item||!files?.length)return;try{toast("Saving photos…");const paths=await uploadListingPhotos(id,[...files]);const saved=await saveCloudItem({...item,listingPhotoPaths:[...(item.listingPhotoPaths||[]),...paths]});items[items.findIndex(x=>x.id===id)]=saved;await renderMasterDraftPhotos(saved);renderAll();toast(paths.length+" photo"+(paths.length===1?"":"s")+" saved permanently.");}catch(e){alert("Could not save photos. "+e.message);}finally{if($("masterDraftPhotoUpload"))$("masterDraftPhotoUpload").value="";}}
 function draftSpecificsCompleteness(i){
  const s=i.ebayItemSpecifics||{}, keys=Object.keys(s).filter(k=>String(s[k]??"").trim());
  return keys.length;
@@ -749,7 +787,7 @@ function nextReviewDraftId(currentId){
 }
 function openMasterDraft(id){
  const i=items.find(x=>x.id===id); if(!i)return;
- $("masterDraftId").value=i.id;$("masterDraftHeading").textContent=i.title||"Review Draft";$("masterDraftTitle").value=i.title||"";$("masterDraftBrand").value=i.brand||"";$("masterDraftCategory").value=i.category||"";$("masterDraftEbayCategoryId").value=i.ebayCategoryId||"";$("masterDraftEbayConditionId").value=i.ebayConditionId||ebayConditionId(i.itemCondition)||"";$("masterDraftItemSpecifics").value=specificsObjectToText(i.ebayItemSpecifics);$("masterDraftPrice").value=Number(i.listPrice||0)||"";$("masterDraftStatus").value=i.draftStatus||"draft";$("masterDraftCondition").value=i.itemCondition||"";$("masterDraftDescription").value=i.listingDescription||"";$("masterDraftResearch").value=i.researchNotes||"";renderEbayCategorySuggestions(i);validateCurrentMasterDraft();$("masterDraftDialog").showModal();
+ $("masterDraftId").value=i.id;$("masterDraftHeading").textContent=i.title||"Review Draft";$("masterDraftTitle").value=i.title||"";$("masterDraftBrand").value=i.brand||"";$("masterDraftCategory").value=i.category||"";$("masterDraftEbayCategoryId").value=i.ebayCategoryId||"";$("masterDraftEbayConditionId").value=i.ebayConditionId||ebayConditionId(i.itemCondition)||"";$("masterDraftItemSpecifics").value=specificsObjectToText(i.ebayItemSpecifics);renderSpecificsEditorFromTextarea();renderMasterDraftPhotos(i);$("masterDraftPrice").value=Number(i.listPrice||0)||"";$("masterDraftStatus").value=i.draftStatus||"draft";$("masterDraftCondition").value=i.itemCondition||"";$("masterDraftDescription").value=i.listingDescription||"";$("masterDraftResearch").value=i.researchNotes||"";renderEbayCategorySuggestions(i);validateCurrentMasterDraft();$("masterDraftDialog").showModal();
 }
 async function saveMasterDraft(approve=false){
  const id=$("masterDraftId").value,i=items.find(x=>x.id===id);if(!i)return;
@@ -788,6 +826,9 @@ $("saveMasterDraftBtn")?.addEventListener("click",()=>saveMasterDraft(false));
 $("saveNextMasterDraftBtn")?.addEventListener("click",saveMasterDraftAndNext);
 $("approveMasterDraftBtn")?.addEventListener("click",()=>saveMasterDraft(true));
 $("suggestEbayConditionBtn")?.addEventListener("click",suggestEbayConditionFromDraft);
+$("suggestSpecificsBtn")?.addEventListener("click",addSuggestedSpecifics);
+$("addSpecificRowBtn")?.addEventListener("click",addSpecificRow);
+$("masterDraftPhotoUpload")?.addEventListener("change",e=>addPhotosToMasterDraft(e.target.files));
 ["masterDraftTitle","masterDraftPrice","masterDraftEbayCategoryId","masterDraftEbayConditionId","masterDraftCondition","masterDraftDescription"].forEach(id=>$(id)?.addEventListener("input",validateCurrentMasterDraft));
 
 function showView(viewId) {
