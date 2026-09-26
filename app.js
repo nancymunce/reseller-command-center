@@ -734,11 +734,21 @@ function renderMasterDrafts() {
   const counts={draft:allDrafts.filter(i=>i.draftStatus==="draft").length,approved:allDrafts.filter(i=>i.draftStatus==="approved").length,exported:allDrafts.filter(i=>i.draftStatus==="exported").length,ready:allDrafts.filter(i=>ebayDraftIssues(i).length===0).length};
   if($("draftQueueSummary"))$("draftQueueSummary").innerHTML='<span class="badge">'+counts.draft+' Needs Review</span> <span class="badge">'+counts.ready+' Export Ready</span> <span class="badge">'+counts.approved+' Approved</span> <span class="badge">'+counts.exported+' Exported</span>';
   const filter=$("draftStatusFilter")?.value||"";
-  const drafts=allDrafts.filter(i=>{
+  const query=($("draftSearch")?.value||"").trim().toLowerCase();
+  const sort=$("draftSort")?.value||"attention";
+  let drafts=allDrafts.filter(i=>{
     if(!filter)return true;
     if(filter==="needs")return draftWorkState(i)==="needs";
     if(filter==="ready")return draftWorkState(i)==="ready";
     return i.draftStatus===filter;
+  }).filter(i=>!query||[i.title,i.brand,i.category,i.masterSku].some(v=>String(v||"").toLowerCase().includes(query)));
+  drafts.sort((a,b)=>{
+    if(sort==="title")return String(a.title||"").localeCompare(String(b.title||""));
+    if(sort==="price-high")return Number(b.listPrice||0)-Number(a.listPrice||0);
+    if(sort==="price-low")return Number(a.listPrice||0)-Number(b.listPrice||0);
+    if(sort==="photos")return draftPhotoCount(a)-draftPhotoCount(b);
+    const ai=ebayDraftIssues(a).length,bi=ebayDraftIssues(b).length;
+    return bi-ai||String(a.title||"").localeCompare(String(b.title||""));
   });
   table.innerHTML=drafts.length?drafts.map(i=>`<tr><td><input class="ebay-draft-select" type="checkbox" data-id="${i.id}" ${i.draftStatus==="approved"?"":"disabled"} aria-label="Select ${escapeHtml(i.title)}"></td><td><div class="item-title">${escapeHtml(i.title)}</div><div class="item-meta">${escapeHtml(i.brand||"")}</div></td><td>${escapeHtml(i.itemCondition||"—")}</td><td>${currency(i.listPrice||0)}</td><td><span class="badge">${escapeHtml(i.draftStatus)}</span></td><td>${ebayReadiness(i)}<div class="item-meta">${draftPhotoCount(i)} photos · ${draftSpecificsCompleteness(i)} specifics</div></td><td><button class="secondary review-master-draft" data-id="${i.id}" type="button">Review</button></td></tr>`).join(""):'<tr><td colspan="7" class="empty">No master drafts yet. Send an item through the Listing Agent to create one.</td></tr>';
   document.querySelectorAll(".review-master-draft").forEach(b=>b.addEventListener("click",()=>openMasterDraft(b.dataset.id)));
@@ -793,6 +803,10 @@ function validateCurrentMasterDraft(){
  const el=$("masterDraftReadiness");
  if(el) el.innerHTML=issues.length?'<strong>Needs attention:</strong> '+escapeHtml(issues.join(", ")):'<strong>Ready for eBay export.</strong>';
 }
+function openNextAttentionDraft(){
+ const queue=items.filter(i=>i.draftStatus==="draft").sort((a,b)=>ebayDraftIssues(b).length-ebayDraftIssues(a).length);
+ if(!queue.length){toast("Review queue is clear.");return;}openMasterDraft(queue[0].id);
+}
 function nextReviewDraftId(currentId){
  const queue=items.filter(i=>i.draftStatus==="draft").sort((x,y)=>{
    const xr=ebayDraftIssues(x).length===0?1:0,yr=ebayDraftIssues(y).length===0?1:0;
@@ -843,7 +857,10 @@ function renderAll() {
 }
 
 $("draftStatusFilter")?.addEventListener("change",renderMasterDrafts);
+$("draftSearch")?.addEventListener("input",renderMasterDrafts);
+$("draftSort")?.addEventListener("change",renderMasterDrafts);
 $("exportEbayDraftsBtn")?.addEventListener("click",exportSelectedEbayDrafts);
+$("reviewNextDraftBtn")?.addEventListener("click",openNextAttentionDraft);
 $("selectAllApprovedDrafts")?.addEventListener("change",e=>document.querySelectorAll(".ebay-draft-select:not(:disabled)").forEach(x=>x.checked=e.target.checked));
 $("closeMasterDraftBtn")?.addEventListener("click",()=>$("masterDraftDialog")?.close());
 $("saveMasterDraftBtn")?.addEventListener("click",()=>saveMasterDraft(false));
