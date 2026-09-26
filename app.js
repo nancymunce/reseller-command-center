@@ -689,6 +689,10 @@ function renderMasterDrafts() {
 }
 function csvCell(value){const s=String(value??"");return /[",\n\r]/.test(s)?'"'+s.replace(/"/g,'""')+'"':s;}
 function ebayConditionId(text){const t=String(text||"").toLowerCase();if(/brand new|new with|\bnew\b/.test(t))return "1000";if(/open box|new other/.test(t))return "1500";if(/seller refurbished/.test(t))return "2500";if(/used|pre-owned|preowned|vintage/.test(t))return "3000";return "";}
+async function markExportedDrafts(ids){
+ for(const id of ids){const i=items.find(x=>x.id===id);if(!i)continue;try{const saved=await saveCloudItem({...i,draftStatus:"exported"});items[items.findIndex(x=>x.id===id)]=saved;}catch(e){console.warn("Could not mark exported",id,e);}}
+ renderAll();
+}
 function exportSelectedEbayDrafts(){
  const ids=[...document.querySelectorAll(".ebay-draft-select:checked")].map(x=>x.dataset.id);
  const selected=items.filter(i=>ids.includes(i.id)&&i.draftStatus==="approved");
@@ -700,7 +704,7 @@ function exportSelectedEbayDrafts(){
  const info=[["#INFO","Version=0.0.2","Template= eBay-draft-listings-template_US","","","","","","","",""],["#INFO Action and Category ID are required fields. 1) Set Action to Draft 2) Please find the category ID for your listings here: https://pages.ebay.com/sellerinformation/news/categorychanges.html","","","","","","","","","",""],["#INFO After you've successfully uploaded your draft from the Seller Hub Reports tab, complete your drafts to active listings here: https://www.ebay.com/sh/lst/drafts","","","","","","","","","",""],["#INFO","","","","","","","","","",""]];
  const csv=[...info,headers,...rows].map(r=>r.map(csvCell).join(",")).join("\r\n");
  const blob=new Blob([csv],{type:"text/csv;charset=utf-8"}),url=URL.createObjectURL(blob),a=document.createElement("a");a.href=url;a.download="ebay-draft-listings-"+new Date().toISOString().slice(0,10)+".csv";document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),1000);
- toast(selected.length+" eBay draft"+(selected.length===1?"":"s")+" exported — you upload the file in Seller Hub.");
+ markExportedDrafts(selected.map(i=>i.id));toast(selected.length+" eBay draft"+(selected.length===1?"":"s")+" exported — marked Exported in Command Center. You upload the file in Seller Hub.");
 }
 function ebayCategorySuggestionsFor(item){
  const target=[item.title,item.brand,item.category].filter(Boolean).join(" ").toLowerCase();
