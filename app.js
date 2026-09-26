@@ -658,6 +658,14 @@ function renderSettings() {
 }
 
 
+function draftSpecificsCompleteness(i){
+ const s=i.ebayItemSpecifics||{}, keys=Object.keys(s).filter(k=>String(s[k]??"").trim());
+ return keys.length;
+}
+function masterDraftSummary(i){
+ const issues=ebayDraftIssues(i), count=draftSpecificsCompleteness(i);
+ return {issues,count,ready:issues.length===0};
+}
 function ebayDraftIssues(i){
  const issues=[];
  if(!String(i.title||"").trim()) issues.push("title");
@@ -676,7 +684,7 @@ function renderMasterDrafts() {
   const table=$("masterDraftTable"); if(!table)return;
   const filter=$("draftStatusFilter")?.value||"";
   const drafts=items.filter(i=>["draft","approved","exported"].includes(i.draftStatus)).filter(i=>!filter||i.draftStatus===filter);
-  table.innerHTML=drafts.length?drafts.map(i=>`<tr><td><input class="ebay-draft-select" type="checkbox" data-id="${i.id}" ${i.draftStatus==="approved"?"":"disabled"} aria-label="Select ${escapeHtml(i.title)}"></td><td><div class="item-title">${escapeHtml(i.title)}</div><div class="item-meta">${escapeHtml(i.brand||"")}</div></td><td>${escapeHtml(i.itemCondition||"—")}</td><td>${currency(i.listPrice||0)}</td><td><span class="badge">${escapeHtml(i.draftStatus)}</span></td><td>${ebayReadiness(i)}</td><td><button class="secondary review-master-draft" data-id="${i.id}" type="button">Review</button></td></tr>`).join(""):'<tr><td colspan="7" class="empty">No master drafts yet. Send an item through the Listing Agent to create one.</td></tr>';
+  table.innerHTML=drafts.length?drafts.map(i=>`<tr><td><input class="ebay-draft-select" type="checkbox" data-id="${i.id}" ${i.draftStatus==="approved"?"":"disabled"} aria-label="Select ${escapeHtml(i.title)}"></td><td><div class="item-title">${escapeHtml(i.title)}</div><div class="item-meta">${escapeHtml(i.brand||"")}</div></td><td>${escapeHtml(i.itemCondition||"—")}</td><td>${currency(i.listPrice||0)}</td><td><span class="badge">${escapeHtml(i.draftStatus)}</span></td><td>${ebayReadiness(i)}<div class="item-meta">${draftSpecificsCompleteness(i)} specifics</div></td><td><button class="secondary review-master-draft" data-id="${i.id}" type="button">Review</button></td></tr>`).join(""):'<tr><td colspan="7" class="empty">No master drafts yet. Send an item through the Listing Agent to create one.</td></tr>';
   document.querySelectorAll(".review-master-draft").forEach(b=>b.addEventListener("click",()=>openMasterDraft(b.dataset.id)));
 }
 function csvCell(value){const s=String(value??"");return /[",\n\r]/.test(s)?'"'+s.replace(/"/g,'""')+'"':s;}
@@ -731,6 +739,7 @@ function openMasterDraft(id){
 }
 async function saveMasterDraft(approve=false){
  const id=$("masterDraftId").value,i=items.find(x=>x.id===id);if(!i)return;
+ if(approve){const probe={...i,title:$("masterDraftTitle").value.trim(),listPrice:Number($("masterDraftPrice").value||0),ebayCategoryId:$("masterDraftEbayCategoryId").value.trim(),ebayConditionId:$("masterDraftEbayConditionId").value.trim(),itemCondition:$("masterDraftCondition").value.trim(),listingDescription:$("masterDraftDescription").value.trim()};const issues=ebayDraftIssues(probe);if(issues.length){alert("This draft cannot be approved yet. Please complete: "+issues.join(", "));return;}}
  const updated={...i,title:$("masterDraftTitle").value.trim()||i.title,brand:$("masterDraftBrand").value.trim(),category:$("masterDraftCategory").value.trim(),ebayCategoryId:$("masterDraftEbayCategoryId").value.trim(),ebayConditionId:$("masterDraftEbayConditionId").value.trim(),ebayItemSpecifics:specificsTextToObject($("masterDraftItemSpecifics").value),listPrice:Number($("masterDraftPrice").value||0),itemCondition:$("masterDraftCondition").value.trim(),listingDescription:$("masterDraftDescription").value.trim(),researchNotes:$("masterDraftResearch").value.trim(),draftStatus:approve?"approved":$("masterDraftStatus").value};
  try{const saved=await saveCloudItem(updated);items[items.findIndex(x=>x.id===id)]=saved;renderAll();$("masterDraftDialog").close();toast(approve?"Master draft approved":"Master draft saved");}catch(e){alert("Could not save master draft. "+e.message);}
 }
