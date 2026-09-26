@@ -183,7 +183,7 @@
       <div class="section-toolbar"><div><p class="eyebrow">Cleanup Queue</p><h2>Complete Inventory</h2><p class="section-intro">Fill in the business details eBay could not provide. Save one item at a time or apply storage/source to selected items in bulk.</p></div></div>
       <div class="stats-grid complete-stats"><article class="stat-card"><span>Needs Details</span><strong id="completeCount">0</strong><small>Items still incomplete</small></article><article class="stat-card"><span>Missing Cost</span><strong id="missingCostCount">0</strong><small>Imported cost not yet entered</small></article><article class="stat-card"><span>Missing Storage</span><strong id="missingStorageCount">0</strong><small>Need a bin, shelf or room</small></article><article class="stat-card"><span>Missing Purchase Date</span><strong id="missingDateCount">0</strong><small>Optional if unknown</small></article></div>
       <div class="panel complete-bulk"><strong>Bulk update selected</strong><input id="bulkStorage" placeholder="Storage location (example: BIN A12)" /><input id="bulkSource" placeholder="Purchase source (example: Goodwill)" /><button class="secondary" id="applyBulkCompleteBtn" type="button">Apply to Selected</button></div>
-      <div class="panel"><div class="table-wrap"><table><thead><tr><th><input id="selectAllComplete" type="checkbox" aria-label="Select all visible items"></th><th>Item</th><th>Cost</th><th>Storage</th><th>Purchase Date</th><th>Purchase Source</th><th></th></tr></thead><tbody id="completeInventoryTable"></tbody></table></div></div>
+      <div id="draftQueueSummary" class="draft-queue-summary" aria-live="polite"></div><div class="panel"><div class="table-wrap"><table><thead><tr><th><input id="selectAllComplete" type="checkbox" aria-label="Select all visible items"></th><th>Item</th><th>Cost</th><th>Storage</th><th>Purchase Date</th><th>Purchase Source</th><th></th></tr></thead><tbody id="completeInventoryTable"></tbody></table></div></div>
     </section>
 
     <section id="sales" class="view">
@@ -239,7 +239,7 @@
             <label class="span-2">Description<textarea id="masterDraftDescription" rows="8"></textarea></label>
             <label class="span-2">Private Research Notes<textarea id="masterDraftResearch" rows="6"></textarea></label>
           </div>
-          <div id="masterDraftReadiness" class="section-intro" aria-live="polite"></div><div class="dialog-actions"><button type="button" class="secondary" id="saveMasterDraftBtn">Save Draft</button><button type="button" class="primary" id="approveMasterDraftBtn">Approve Draft</button></div>
+          <div id="masterDraftReadiness" class="section-intro" aria-live="polite"></div><div class="dialog-actions"><button type="button" class="secondary" id="saveMasterDraftBtn">Save Draft</button><button type="button" class="secondary" id="saveNextMasterDraftBtn">Save &amp; Next</button><button type="button" class="primary" id="approveMasterDraftBtn">Approve Draft</button></div>
         </form>
       </dialog>
     </section>
@@ -670,7 +670,7 @@
        Row Level Security in Supabase protects the actual inventory data. -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="supabase-config.js?v=20260918-cloud1"></script>
-  <script src="app.js?v=20260925-approvalgate1"></script>
+  <script src="app.js?v=20260925-draftqueue1"></script>
   <script src="muse-handoff.js?v=20260925-draft1"></script>
 </body>
 </html>
