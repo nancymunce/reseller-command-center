@@ -676,13 +676,19 @@ function addSuggestedSpecifics(){
 function renderSpecificsEditorFromTextarea(){
  const box=$("masterDraftSpecificsRows"),area=$("masterDraftItemSpecifics");if(!box||!area)return;
  const rows=String(area.value||"").split(/\r?\n/).map(line=>{const p=line.indexOf(":");return p>0?[line.slice(0,p).trim(),line.slice(p+1).trim()]:[line.trim(),""];}).filter(([k])=>k);
- box.innerHTML=rows.map(([k,v],idx)=>'<div class="specific-row"><input class="specific-name" value="'+escapeHtml(k)+'" placeholder="Field"><input class="specific-value" value="'+escapeHtml(v)+'" placeholder="Value"><button type="button" class="text-button remove-specific" data-i="'+idx+'">Remove</button></div>').join("");
+ box.innerHTML=rows.length?rows.map(([k,v],idx)=>'<div class="specific-row"><input class="specific-name" value="'+escapeHtml(k)+'" placeholder="Field"><input class="specific-value" value="'+escapeHtml(v)+'" placeholder="Value"><button type="button" class="text-button remove-specific" data-i="'+idx+'" aria-label="Remove '+escapeHtml(k)+'">Remove</button></div>').join(""):'<div class="specifics-empty">No item specifics yet. Use <strong>Suggest Fields</strong> or add one manually.</div>';
  box.querySelectorAll("input").forEach(x=>x.addEventListener("input",syncSpecificsTextareaFromRows));
- box.querySelectorAll(".remove-specific").forEach(b=>b.addEventListener("click",()=>{b.closest(".specific-row").remove();syncSpecificsTextareaFromRows();}));
+ box.querySelectorAll(".remove-specific").forEach(b=>b.addEventListener("click",()=>{b.closest(".specific-row").remove();syncSpecificsTextareaFromRows();renderSpecificsEditorFromTextarea();}));
+ updateSpecificsCount();
+}
+function updateSpecificsCount(){
+ const count=$("masterDraftSpecificsCount"),area=$("masterDraftItemSpecifics");if(!count||!area)return;
+ const n=Object.keys(specificsTextToObject(area.value)).length;count.textContent=n+" specific"+(n===1?"":"s");
 }
 function syncSpecificsTextareaFromRows(){
  const area=$("masterDraftItemSpecifics"),box=$("masterDraftSpecificsRows");if(!area||!box)return;
  area.value=[...box.querySelectorAll(".specific-row")].map(r=>{const k=r.querySelector(".specific-name").value.trim(),v=r.querySelector(".specific-value").value.trim();return k?k+": "+v:"";}).filter(Boolean).join("\n");
+ updateSpecificsCount();validateCurrentMasterDraft();
 }
 function addSpecificRow(){const area=$("masterDraftItemSpecifics");if(!area)return;area.value+=(area.value.trim()?"\n":"")+"Field: ";renderSpecificsEditorFromTextarea();const rows=$("masterDraftSpecificsRows")?.querySelectorAll(".specific-row");rows?.[rows.length-1]?.querySelector(".specific-name")?.select();}
 async function currentUserId(){const {data}=await supabaseClient.auth.getUser();return data?.user?.id||"";}
@@ -719,8 +725,8 @@ async function signedListingPhotoUrl(path){const {data,error}=await supabaseClie
 async function removeListingPhoto(path){return removeListingPhotoFiles([path]);}
 async function renderMasterDraftPhotos(item){
  const box=$("masterDraftPhotos");if(!box)return;box.innerHTML="";
- const paths=item.listingPhotoPaths||[];if(!paths.length){box.innerHTML='<span class="item-meta">No persistent photos saved yet.</span>';return;}
- for(const [idx,path] of paths.entries()){try{const url=await signedListingPhotoUrl(path),fig=document.createElement("figure");fig.className="master-draft-photo";fig.innerHTML='<img src="'+url+'" alt="Listing photo '+(idx+1)+'"><figcaption>'+(idx===0?"Primary photo":"Photo "+(idx+1))+'</figcaption><div><button type="button" class="text-button move-photo-left" '+(idx===0?"disabled":"")+'>←</button><button type="button" class="text-button move-photo-right" '+(idx===paths.length-1?"disabled":"")+'>→</button><button type="button" class="text-button remove-photo">Remove</button></div>';
+ const paths=item.listingPhotoPaths||[];const count=$("masterDraftPhotoCount");if(count)count.textContent=paths.length+" photo"+(paths.length===1?"":"s");if(!paths.length){box.innerHTML='<div class="photo-empty-state"><strong>No photos saved yet.</strong><span>Add one or more listing photos before approval.</span></div>';validateCurrentMasterDraft();return;}
+ for(const [idx,path] of paths.entries()){try{const url=await signedListingPhotoUrl(path),fig=document.createElement("figure");fig.className="master-draft-photo";fig.innerHTML='<div class="photo-frame"><img src="'+url+'" alt="Listing photo '+(idx+1)+'">'+(idx===0?'<span class="primary-photo-badge">Primary</span>':'')+'</div><figcaption>Photo '+(idx+1)+'</figcaption><div class="photo-actions"><button type="button" class="text-button move-photo-left" '+(idx===0?"disabled":"")+' aria-label="Move photo left">←</button><button type="button" class="text-button move-photo-right" '+(idx===paths.length-1?"disabled":"")+' aria-label="Move photo right">→</button><button type="button" class="text-button remove-photo">Remove</button></div>';
  const move=async(to)=>{const next=[...paths],[p]=next.splice(idx,1);next.splice(to,0,p);const saved=await saveCloudItem({...item,listingPhotoPaths:next});items[items.findIndex(x=>x.id===item.id)]=saved;renderMasterDraftPhotos(saved);};
  fig.querySelector(".move-photo-left")?.addEventListener("click",()=>move(idx-1));fig.querySelector(".move-photo-right")?.addEventListener("click",()=>move(idx+1));fig.querySelector(".remove-photo").addEventListener("click",async()=>{
    if(!confirm("Remove this photo from the listing?"))return;
@@ -747,6 +753,7 @@ async function renderMasterDraftPhotos(item){
      button.disabled=false;button.textContent="Remove";
    }
  });box.appendChild(fig);}catch(e){console.warn("Could not load listing photo",e);}}
+ validateCurrentMasterDraft();
 }
 async function addPhotosToMasterDraft(files){
  const id=$("masterDraftId").value,item=items.find(x=>x.id===id);if(!item||!files?.length)return;
@@ -869,7 +876,8 @@ function suggestEbayConditionFromDraft(){
  toast("Suggested eBay condition ID "+id+" — review before approving.");
 }
 function validateCurrentMasterDraft(){
- const probe={title:$("masterDraftTitle")?.value,listPrice:Number($("masterDraftPrice")?.value||0),ebayCategoryId:$("masterDraftEbayCategoryId")?.value,ebayConditionId:$("masterDraftEbayConditionId")?.value,itemCondition:$("masterDraftCondition")?.value,listingDescription:$("masterDraftDescription")?.value};
+ const current=items.find(x=>x.id===$("masterDraftId")?.value);
+ const probe={title:$("masterDraftTitle")?.value,listPrice:Number($("masterDraftPrice")?.value||0),ebayCategoryId:$("masterDraftEbayCategoryId")?.value,ebayConditionId:$("masterDraftEbayConditionId")?.value,itemCondition:$("masterDraftCondition")?.value,listingDescription:$("masterDraftDescription")?.value,listingPhotoPaths:current?.listingPhotoPaths||[]};
  const issues=ebayDraftIssues(probe);
  const el=$("masterDraftReadiness");
  if(el) el.innerHTML=issues.length?'<strong>Needs attention:</strong> '+escapeHtml(issues.join(", ")):'<strong>Ready for eBay export.</strong>';
@@ -899,7 +907,6 @@ async function saveMasterDraft(approve=false){
    const issues=ebayDraftIssues(probe);
    if(issues.length){alert("This draft cannot be approved yet. Please complete: "+issues.join(", "));return;}
  }
- if(approve){const probe={...i,title:$("masterDraftTitle").value.trim(),listPrice:Number($("masterDraftPrice").value||0),ebayCategoryId:$("masterDraftEbayCategoryId").value.trim(),ebayConditionId:$("masterDraftEbayConditionId").value.trim(),itemCondition:$("masterDraftCondition").value.trim(),listingDescription:$("masterDraftDescription").value.trim()};const issues=ebayDraftIssues(probe);if(issues.length){alert("This draft cannot be approved yet. Please complete: "+issues.join(", "));return;}}
  const updated={...i,title:$("masterDraftTitle").value.trim()||i.title,brand:$("masterDraftBrand").value.trim(),category:$("masterDraftCategory").value.trim(),ebayCategoryId:$("masterDraftEbayCategoryId").value.trim(),ebayConditionId:$("masterDraftEbayConditionId").value.trim(),ebayItemSpecifics:specificsTextToObject($("masterDraftItemSpecifics").value),listPrice:Number($("masterDraftPrice").value||0),itemCondition:$("masterDraftCondition").value.trim(),listingDescription:$("masterDraftDescription").value.trim(),researchNotes:$("masterDraftResearch").value.trim(),draftStatus:approve?"approved":$("masterDraftStatus").value};
  try{const saved=await saveCloudItem(updated);items[items.findIndex(x=>x.id===id)]=saved;renderAll();$("masterDraftDialog").close();toast(approve?"Master draft approved":"Master draft saved");return saved;}catch(e){alert("Could not save master draft. "+e.message);}
 }
