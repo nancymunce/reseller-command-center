@@ -659,7 +659,19 @@ function renderSettings() {
 }
 
 
-function specificsObjectToText(obj){return Object.entries(obj||{}).map(([k,v])=>k+": "+(v??"")).join("\n");}
+function normalizeItemSpecifics(raw){
+ const out={};
+ if(!raw||typeof raw!=="object"||Array.isArray(raw))return out;
+ Object.entries(raw).forEach(([key,value])=>{
+   const k=String(key||"").trim();if(!k)return;
+   let v="";
+   if(Array.isArray(value))v=value.map(x=>String(x??"").trim()).filter(Boolean).join(", ");
+   else if(["string","number","boolean"].includes(typeof value))v=String(value).trim();
+   if(v)out[k]=v;
+ });
+ return out;
+}
+function specificsObjectToText(obj){return Object.entries(normalizeItemSpecifics(obj)).map(([k,v])=>k+": "+v).join("\n");}
 function specificsTextToObject(text){const out={};String(text||"").split(/\r?\n/).forEach(line=>{const p=line.indexOf(":");if(p<1)return;const k=line.slice(0,p).trim(),v=line.slice(p+1).trim();if(k&&v)out[k]=v;});return out;}
 function suggestedSpecificsForDraft(){
  const text=[$("masterDraftTitle")?.value,$("masterDraftCategory")?.value,$("masterDraftDescription")?.value].join(" ").toLowerCase();
@@ -1050,7 +1062,7 @@ async function prepareMasterDraftFromPhotos(files,label="Batch item"){
   const id=crypto.randomUUID();
   const draft=await analyzeListingPhotoFiles(files,{notes:"Prepared from Batch Photo Intake. Review all AI-generated fields before approval."});
   const paths=await uploadListingPhotos(id,files);
-  const item={id,title:String(draft.title||label).trim()||label,brand:String(draft.brand||"").trim(),category:String(draft.category||"").trim(),purchaseCost:0,costStatus:"unknown",purchaseDate:"",source:"",storage:"",status:"Unlisted",listPrice:Number(draft.suggested_price||0),listedMarketplaces:[],saleMarketplace:"",saleDate:"",salePrice:0,shippingCollected:0,fees:0,shippingCost:0,otherExpenses:0,notes:"",listingDescription:String(draft.description||"").trim(),itemCondition:String(draft.condition||"").trim(),researchNotes:String(draft.research_notes||"").trim(),draftStatus:"draft",ebayCategoryId:"",ebayConditionId:"",ebayItemSpecifics:(draft.item_specifics&&typeof draft.item_specifics==="object"&&!Array.isArray(draft.item_specifics))?draft.item_specifics:{},listingPhotoPaths:paths};
+  const item={id,title:String(draft.title||label).trim()||label,brand:String(draft.brand||"").trim(),category:String(draft.category||"").trim(),purchaseCost:0,costStatus:"unknown",purchaseDate:"",source:"",storage:"",status:"Unlisted",listPrice:Number(draft.suggested_price||0),listedMarketplaces:[],saleMarketplace:"",saleDate:"",salePrice:0,shippingCollected:0,fees:0,shippingCost:0,otherExpenses:0,notes:"",listingDescription:String(draft.description||"").trim(),itemCondition:String(draft.condition||"").trim(),researchNotes:String(draft.research_notes||"").trim(),draftStatus:"draft",ebayCategoryId:"",ebayConditionId:"",ebayItemSpecifics:normalizeItemSpecifics(draft.item_specifics),listingPhotoPaths:paths};
   try{return await saveCloudItem(item);}
   catch(error){try{await removeListingPhotoFiles(paths);}catch(rollbackError){console.error("Could not roll back batch draft photos",rollbackError);}throw error;}
 }
@@ -1508,7 +1520,7 @@ $("analyzeListingPhotosBtn")?.addEventListener("click", async () => {
 $("discardAgentDraftBtn")?.addEventListener("click",()=>{listingAgentDraftData=null;$("listingDraftPanel").hidden=true;$("listingAgentStatus").textContent="Photos ready";$("listingAgentMessage").textContent="Analyze again whenever you are ready.";});
 $("approveAgentDraftBtn")?.addEventListener("click",async()=>{
   const costStatus=$("agentCostStatus").value, cost=costStatus==="free"?0:Number($("agentCost").value||0),id=crypto.randomUUID();
-  const item={id,title:$("agentDraftTitle").value.trim(),brand:$("agentDraftBrand").value.trim(),category:$("agentDraftCategory").value.trim(),purchaseCost:cost,costStatus,purchaseDate:new Date().toISOString().slice(0,10),source:$("agentSource").value.trim(),storage:$("agentStorage").value.trim(),status:"Unlisted",listPrice:Number($("agentDraftPrice").value||0),listedMarketplaces:[],saleMarketplace:"",saleDate:"",salePrice:0,shippingCollected:0,fees:0,shippingCost:0,otherExpenses:0,notes:$("agentNotes").value.trim(),listingDescription:$("agentDraftDescription").value.trim(),itemCondition:$("agentDraftCondition").value.trim(),researchNotes:$("agentDraftResearch").value.trim(),draftStatus:"draft",ebayCategoryId:"",ebayConditionId:"",ebayItemSpecifics:(listingAgentDraftData?.item_specifics&&typeof listingAgentDraftData.item_specifics==="object"&&!Array.isArray(listingAgentDraftData.item_specifics))?listingAgentDraftData.item_specifics:{},listingPhotoPaths:[]};
+  const item={id,title:$("agentDraftTitle").value.trim(),brand:$("agentDraftBrand").value.trim(),category:$("agentDraftCategory").value.trim(),purchaseCost:cost,costStatus,purchaseDate:new Date().toISOString().slice(0,10),source:$("agentSource").value.trim(),storage:$("agentStorage").value.trim(),status:"Unlisted",listPrice:Number($("agentDraftPrice").value||0),listedMarketplaces:[],saleMarketplace:"",saleDate:"",salePrice:0,shippingCollected:0,fees:0,shippingCost:0,otherExpenses:0,notes:$("agentNotes").value.trim(),listingDescription:$("agentDraftDescription").value.trim(),itemCondition:$("agentDraftCondition").value.trim(),researchNotes:$("agentDraftResearch").value.trim(),draftStatus:"draft",ebayCategoryId:"",ebayConditionId:"",ebayItemSpecifics:normalizeItemSpecifics(listingAgentDraftData?.item_specifics),listingPhotoPaths:[]};
   if(!item.title){toast("Give the listing a title first");return;}
   if(!listingAgentPhotos.length){toast("Add at least one listing photo first");return;}
   const button=$("approveAgentDraftBtn");button.disabled=true;button.textContent="Saving Master Draft…";
