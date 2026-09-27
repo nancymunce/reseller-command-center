@@ -686,17 +686,86 @@ function syncSpecificsTextareaFromRows(){
 }
 function addSpecificRow(){const area=$("masterDraftItemSpecifics");if(!area)return;area.value+=(area.value.trim()?"\n":"")+"Field: ";renderSpecificsEditorFromTextarea();const rows=$("masterDraftSpecificsRows")?.querySelectorAll(".specific-row");rows?.[rows.length-1]?.querySelector(".specific-name")?.select();}
 async function currentUserId(){const {data}=await supabaseClient.auth.getUser();return data?.user?.id||"";}
-async function uploadListingPhotos(itemId,files){if(!files?.length)return[];const allowed=new Set(["image/jpeg","image/png","image/webp","image/heic","image/heif"]);const bad=[...files].filter(f=>f.type&&!allowed.has(f.type.toLowerCase()));if(bad.length)throw new Error("Unsupported photo format: "+bad.map(f=>f.name).join(", ")+". Use JPEG, PNG, WebP, HEIC, or HEIF.");const uid=await currentUserId();if(!uid)throw new Error("You must be signed in to save photos.");const paths=[];for(let n=0;n<files.length;n++){const f=files[n],ext=(f.name.split(".").pop()||"jpg").toLowerCase(),path=uid+"/"+itemId+"/"+Date.now()+"-"+n+"."+ext;const {error}=await supabaseClient.storage.from("listing-photos").upload(path,f,{contentType:f.type||"image/jpeg",upsert:false});if(error)throw error;paths.push(path);}return paths;}
+async function removeListingPhotoFiles(paths){
+ const unique=[...new Set((paths||[]).filter(Boolean))];
+ if(!unique.length)return;
+ const {error}=await supabaseClient.storage.from("listing-photos").remove(unique);
+ if(error)throw error;
+}
+async function uploadListingPhotos(itemId,files){
+ if(!files?.length)return[];
+ const allowed=new Set(["image/jpeg","image/png","image/webp","image/heic","image/heif"]);
+ const bad=[...files].filter(f=>f.type&&!allowed.has(f.type.toLowerCase()));
+ if(bad.length)throw new Error("Unsupported photo format: "+bad.map(f=>f.name).join(", ")+". Use JPEG, PNG, WebP, HEIC, or HEIF.");
+ const uid=await currentUserId();
+ if(!uid)throw new Error("You must be signed in to save photos.");
+ const paths=[],stamp=Date.now();
+ try{
+   for(let n=0;n<files.length;n++){
+     const f=files[n],ext=(f.name.split(".").pop()||"jpg").toLowerCase(),path=uid+"/"+itemId+"/"+stamp+"-"+n+"."+ext;
+     const {error}=await supabaseClient.storage.from("listing-photos").upload(path,f,{contentType:f.type||"image/jpeg",upsert:false});
+     if(error)throw error;
+     paths.push(path);
+   }
+   return paths;
+ }catch(error){
+   if(paths.length){
+     try{await removeListingPhotoFiles(paths);}catch(rollbackError){console.error("Photo upload rollback failed",rollbackError);}
+   }
+   throw error;
+ }
+}
 async function signedListingPhotoUrl(path){const {data,error}=await supabaseClient.storage.from("listing-photos").createSignedUrl(path,3600);if(error)throw error;return data.signedUrl;}
-async function removeListingPhoto(path){const {error}=await supabaseClient.storage.from("listing-photos").remove([path]);if(error)throw error;}
+async function removeListingPhoto(path){return removeListingPhotoFiles([path]);}
 async function renderMasterDraftPhotos(item){
  const box=$("masterDraftPhotos");if(!box)return;box.innerHTML="";
  const paths=item.listingPhotoPaths||[];if(!paths.length){box.innerHTML='<span class="item-meta">No persistent photos saved yet.</span>';return;}
  for(const [idx,path] of paths.entries()){try{const url=await signedListingPhotoUrl(path),fig=document.createElement("figure");fig.className="master-draft-photo";fig.innerHTML='<img src="'+url+'" alt="Listing photo '+(idx+1)+'"><figcaption>'+(idx===0?"Primary photo":"Photo "+(idx+1))+'</figcaption><div><button type="button" class="text-button move-photo-left" '+(idx===0?"disabled":"")+'>←</button><button type="button" class="text-button move-photo-right" '+(idx===paths.length-1?"disabled":"")+'>→</button><button type="button" class="text-button remove-photo">Remove</button></div>';
  const move=async(to)=>{const next=[...paths],[p]=next.splice(idx,1);next.splice(to,0,p);const saved=await saveCloudItem({...item,listingPhotoPaths:next});items[items.findIndex(x=>x.id===item.id)]=saved;renderMasterDraftPhotos(saved);};
- fig.querySelector(".move-photo-left")?.addEventListener("click",()=>move(idx-1));fig.querySelector(".move-photo-right")?.addEventListener("click",()=>move(idx+1));fig.querySelector(".remove-photo").addEventListener("click",async()=>{if(!confirm("Remove this photo from the listing?"))return;await removeListingPhoto(path);const saved=await saveCloudItem({...item,listingPhotoPaths:paths.filter(p=>p!==path)});items[items.findIndex(x=>x.id===item.id)]=saved;renderMasterDraftPhotos(saved);toast("Photo removed");});box.appendChild(fig);}catch(e){console.warn("Could not load listing photo",e);}}
+ fig.querySelector(".move-photo-left")?.addEventListener("click",()=>move(idx-1));fig.querySelector(".move-photo-right")?.addEventListener("click",()=>move(idx+1));fig.querySelector(".remove-photo").addEventListener("click",async()=>{
+   if(!confirm("Remove this photo from the listing?"))return;
+   const button=fig.querySelector(".remove-photo"),nextPaths=paths.filter(p=>p!==path);
+   button.disabled=true;button.textContent="Removing…";
+   let saved;
+   try{
+     saved=await saveCloudItem({...item,listingPhotoPaths:nextPaths});
+     items[items.findIndex(x=>x.id===item.id)]=saved;
+     try{
+       await removeListingPhoto(path);
+     }catch(storageError){
+       console.error("Photo storage removal failed; restoring draft reference",storageError);
+       try{
+         const restored=await saveCloudItem({...saved,listingPhotoPaths:paths});
+         items[items.findIndex(x=>x.id===item.id)]=restored;
+         await renderMasterDraftPhotos(restored);
+       }catch(restoreError){console.error("Photo reference rollback failed",restoreError);}
+       throw new Error("The photo could not be removed safely. Nothing was intentionally changed.");
+     }
+     await renderMasterDraftPhotos(saved);renderAll();toast("Photo removed");
+   }catch(e){
+     alert("Could not remove photo. "+e.message);
+     button.disabled=false;button.textContent="Remove";
+   }
+ });box.appendChild(fig);}catch(e){console.warn("Could not load listing photo",e);}}
 }
-async function addPhotosToMasterDraft(files){const id=$("masterDraftId").value,item=items.find(x=>x.id===id);if(!item||!files?.length)return;try{toast("Saving photos…");const paths=await uploadListingPhotos(id,[...files]);const saved=await saveCloudItem({...item,listingPhotoPaths:[...(item.listingPhotoPaths||[]),...paths]});items[items.findIndex(x=>x.id===id)]=saved;await renderMasterDraftPhotos(saved);renderAll();toast(paths.length+" photo"+(paths.length===1?"":"s")+" saved permanently.");}catch(e){alert("Could not save photos. "+e.message);}finally{if($("masterDraftPhotoUpload"))$("masterDraftPhotoUpload").value="";}}
+async function addPhotosToMasterDraft(files){
+ const id=$("masterDraftId").value,item=items.find(x=>x.id===id);if(!item||!files?.length)return;
+ let paths=[];
+ try{
+   toast("Saving photos…");
+   paths=await uploadListingPhotos(id,[...files]);
+   let saved;
+   try{
+     saved=await saveCloudItem({...item,listingPhotoPaths:[...(item.listingPhotoPaths||[]),...paths]});
+   }catch(saveError){
+     try{await removeListingPhotoFiles(paths);}catch(rollbackError){console.error("Could not roll back uploaded photos after draft save failure",rollbackError);}
+     throw saveError;
+   }
+   items[items.findIndex(x=>x.id===id)]=saved;
+   await renderMasterDraftPhotos(saved);renderAll();toast(paths.length+" photo"+(paths.length===1?"":"s")+" saved permanently.");
+ }catch(e){alert("Could not save photos. "+e.message);}
+ finally{if($("masterDraftPhotoUpload"))$("masterDraftPhotoUpload").value="";}
+}
 function draftSpecificsCompleteness(i){
  const s=i.ebayItemSpecifics||{}, keys=Object.keys(s).filter(k=>String(s[k]??"").trim());
  return keys.length;
