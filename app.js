@@ -438,7 +438,7 @@ function renderSales() {
 
 function renderMarketplaceCards() {
   const descriptions = {
-    "eBay": ["API-ready", "Full order, fee and payout automation can be added through secure OAuth."],
+    "eBay": ["Seller controlled", "Prepare drafts and CSV files here; you remain the only person who logs in to or changes eBay."],
     "Etsy": ["API-ready", "Listings, inventory and receipts can be connected through Etsy's API."],
     "Poshmark": ["Email/import", "Use sale emails, CSV exports or one-click manual updates."],
     "Depop": ["Email/import", "Use sale emails, exports or supported partner integrations."],
