@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Reseller Command Center</title>
-  <link rel="stylesheet" href="styles.css?v=20260925-batch4" />
+  <link rel="stylesheet" href="styles.css?v=20260926-masterdraft2" />
 </head>
 <body>
   <section id="authGate" class="auth-gate">
@@ -219,7 +219,7 @@
     <section id="master-drafts" class="view">
       <div class="section-toolbar">
         <div><p class="eyebrow">Listing pipeline</p><h2>Master Listing Drafts</h2><p class="section-intro">Review the canonical listing once. Approve it here before preparing marketplace-specific exports.</p></div>
-        <div class="filters"><button class="secondary" id="reviewNextDraftBtn" type="button">Review Next</button><button class="primary" id="exportEbayDraftsBtn" type="button">Export Selected to eBay</button><input id="draftSearch" type="search" placeholder="Search drafts…" aria-label="Search master drafts"><select id="draftSort" aria-label="Sort master drafts"><option value="attention">Most Attention Needed</option><option value="title">Title A–Z</option><option value="price-high">Price High–Low</option><option value="price-low">Price Low–High</option><option value="photos">Fewest Photos</option></select><select id="draftStatusFilter"><option value="">All draft states</option><option value="needs">Needs Attention</option><option value="ready">Ready for Approval</option><option value="draft">All Drafts</option><option value="approved">Approved</option><option value="exported">Exported</option></select></div>
+        <div class="filters"><button class="secondary" id="reviewNextDraftBtn" type="button">Review Next</button><button class="primary" id="exportEbayDraftsBtn" type="button">Download Selected eBay CSV</button><input id="draftSearch" type="search" placeholder="Search drafts…" aria-label="Search master drafts"><select id="draftSort" aria-label="Sort master drafts"><option value="attention">Most Attention Needed</option><option value="title">Title A–Z</option><option value="price-high">Price High–Low</option><option value="price-low">Price Low–High</option><option value="photos">Fewest Photos</option></select><select id="draftStatusFilter"><option value="">All draft states</option><option value="needs">Needs Attention</option><option value="ready">Ready for Approval</option><option value="draft">All Drafts</option><option value="approved">Approved</option><option value="exported">Exported</option></select></div>
       </div>
       <div class="panel"><div class="table-wrap"><table><thead><tr><th><input id="selectAllApprovedDrafts" type="checkbox" aria-label="Select all approved drafts"></th><th>Item</th><th>Condition</th><th>Suggested Price</th><th>Draft State</th><th>eBay Readiness</th><th></th></tr></thead><tbody id="masterDraftTable"></tbody></table></div></div>
       <dialog id="masterDraftDialog" class="item-dialog">
@@ -259,6 +259,7 @@
         <div id="batchGroupControls" class="batch-group-controls" hidden>
           <label>Start a new item after photo <select id="batchSplitAfter"></select></label>
           <button id="batchAutoGroupBtn" class="primary" type="button">Suggest Item Groups</button>
+          <button id="prepareBatchDraftsBtn" class="primary" type="button">Prepare All Master Drafts</button>
           <button id="batchSplitBtn" class="secondary" type="button">Split Here</button>
           <button id="batchOneGroupBtn" class="secondary" type="button">Make One Item</button>
           <button id="batchClearBtn" class="danger ghost" type="button">Clear Batch</button>
@@ -268,10 +269,10 @@
       </article>
 
       <div class="listing-agent-grid">
-        <article class="panel listing-photo-panel"><h3>1. Add item photos</h3><label class="listing-dropzone" for="listingAgentPhotos"><strong>📷 Choose Photos</strong><span>Front, back, maker's mark, label, damage, and anything distinctive</span><input id="listingAgentPhotos" type="file" accept="image/*" multiple hidden></label><div id="listingPhotoPreview" class="listing-photo-preview"></div><div class="agent-actions"><button id="sendToMuseBtn" class="primary" type="button" disabled>Send to Muse</button><button id="analyzeListingPhotosBtn" class="secondary" type="button" disabled>Use My AI (optional)</button></div></article>
+        <article class="panel listing-photo-panel"><h3>1. Add item photos</h3><label class="listing-dropzone" for="listingAgentPhotos"><strong>📷 Choose Photos</strong><span>Front, back, maker's mark, label, damage, and anything distinctive</span><input id="listingAgentPhotos" type="file" accept="image/*" multiple hidden></label><div id="listingPhotoPreview" class="listing-photo-preview"></div><div class="agent-actions"><button id="sendToMuseBtn" class="primary" type="button" disabled>Prepare Muse Draft</button><button id="analyzeListingPhotosBtn" class="secondary" type="button" disabled>Use My AI (optional)</button></div></article>
         <article class="panel"><h3>2. What you know</h3><div class="form-grid"><label>What did you pay?<input id="agentCost" type="number" min="0" step=".01" placeholder="Leave blank if unknown"></label><label>Cost status<select id="agentCostStatus"><option value="unknown">Unknown</option><option value="known">Known</option><option value="free">Free</option></select></label><label>Where did you get it?<input id="agentSource" placeholder="Goodwill, estate sale, free..."></label><label>Storage location<input id="agentStorage" placeholder="BIN A12"></label><label class="span-2">Anything I should know?<textarea id="agentNotes" rows="3" placeholder="Set of 4, small chip on rim, tested and working..."></textarea></label></div></article>
         <article class="panel wide listing-agent-status"><p class="eyebrow">Agent status</p><h3 id="listingAgentStatus">Ready for photos</h3><p id="listingAgentMessage">Nothing will be added to inventory until you review and approve the draft.</p></article>
-        <article id="museHandoffPanel" class="panel wide" hidden><div class="panel-heading"><div><p class="eyebrow">Muse handoff</p><h3>3. Send this job to Muse</h3></div></div><p>The package below tells Muse exactly what to do. Your photos remain selected above so you can attach the same photos in Muse.</p><textarea id="museHandoffText" rows="12" readonly></textarea><div class="dialog-actions"><button id="copyMuseHandoffBtn" class="primary" type="button">Copy Muse Instructions</button></div><p class="muted">After Muse publishes the eBay listing, paste Muse's whole result below. The Command Center will extract the listing details for you.</p><hr><h3>4. Bring Muse's result back</h3><label>Paste Muse's entire reply<textarea id="museResultText" rows="8" placeholder="Paste the whole message from Muse here..."></textarea></label><div class="dialog-actions"><button id="parseMuseResultBtn" class="secondary" type="button">Preview Result</button><button id="saveMuseResultBtn" class="primary" type="button" disabled>Save eBay Listing</button></div><div id="museResultPreview" class="muse-result-preview" hidden></div></article>
+        <article id="museHandoffPanel" class="panel wide" hidden><div class="panel-heading"><div><p class="eyebrow">Muse handoff</p><h3>3. Ask Muse to prepare the listing draft</h3></div></div><p>The package below is research-and-draft only. Muse must not log in to or change eBay. Your photos remain selected above so you can attach the same photos in Muse.</p><textarea id="museHandoffText" rows="12" readonly></textarea><div class="dialog-actions"><button id="copyMuseHandoffBtn" class="primary" type="button">Copy Muse Instructions</button></div><p class="muted">After you list the item on eBay yourself, paste the listing details or your notes below. The Command Center can record them without logging in to eBay.</p><hr><h3>4. Bring Muse's result back</h3><label>Paste Muse's entire reply<textarea id="museResultText" rows="8" placeholder="Paste the whole message from Muse here..."></textarea></label><div class="dialog-actions"><button id="parseMuseResultBtn" class="secondary" type="button">Preview Result</button><button id="saveMuseResultBtn" class="primary" type="button" disabled>Save eBay Listing</button></div><div id="museResultPreview" class="muse-result-preview" hidden></div></article>
         <article id="listingDraftPanel" class="panel wide" hidden><div class="panel-heading"><div><p class="eyebrow">AI draft</p><h3>3. Review the listing</h3></div></div><div class="form-grid"><label class="span-2">Title<input id="agentDraftTitle"></label><label>Brand<input id="agentDraftBrand"></label><label>Category<input id="agentDraftCategory"></label><label>Condition<input id="agentDraftCondition"></label><label>Suggested price<input id="agentDraftPrice" type="number" min="0" step=".01"></label><label class="span-2">Description<textarea id="agentDraftDescription" rows="7"></textarea></label><label class="span-2">Identification / research notes<textarea id="agentDraftResearch" rows="4"></textarea></label></div><div class="dialog-actions"><button id="discardAgentDraftBtn" class="secondary" type="button">Discard Draft</button><button id="approveAgentDraftBtn" class="primary" type="button">Approve & Add to Inventory</button></div></article>
       </div>
     </section>
@@ -430,7 +431,7 @@
           <div class="roadmap">
             <div><strong>Phase 1</strong><span>Local inventory, sales, profit, exports</span></div>
             <div><strong>Phase 2</strong><span>Secure database and multi-device access</span></div>
-            <div><strong>Phase 3</strong><span>eBay OAuth, orders, fees and payouts</span></div>
+            <div><strong>Phase 3</strong><span>Manual eBay CSV preparation and seller-controlled listing workflow</span></div>
             <div><strong>Phase 4</strong><span>Email-based sale detection for Poshmark, Depop and others</span></div>
           </div>
         </article>
@@ -671,7 +672,7 @@
        Row Level Security in Supabase protects the actual inventory data. -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="supabase-config.js?v=20260918-cloud1"></script>
-  <script src="app.js?v=20260925-queuecontrols3"></script>
+  <script src="app.js?v=20260926-batchdrafts1"></script>
   <script src="muse-handoff.js?v=20260925-draft1"></script>
 </body>
 </html>
