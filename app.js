@@ -1175,7 +1175,8 @@ function renderBatchIntake() {
   }
   groups.innerHTML=groupIndexes.map((indexes,gi)=>{
     const prep=batchPreparationState.get(batchGroupKey(indexes)),status=prep?.status||"idle";
-    const statusText=status==="created"?"Draft prepared":status==="preparing"?"Preparing…":status==="failed"?"Preparation failed":"Not prepared";
+    const specificCount=status==="created"?draftSpecificsCompleteness(prep.item):0;
+    const statusText=status==="created"?"Draft prepared · "+escapeHtml(prep.item?.title||"Untitled")+" · "+specificCount+" specific"+(specificCount===1?"":"s"):status==="preparing"?"Preparing…":status==="failed"?"Preparation failed":"Not prepared";
     const prepButton=status==="created"?'<button class="secondary open-prepared-draft" type="button" data-group="'+gi+'">Open Draft</button>':status==="preparing"?'<button class="secondary" type="button" disabled>Preparing…</button>':'<button class="primary prepare-batch-group" type="button" data-group="'+gi+'">'+(status==="failed"?"Retry Draft":"Prepare Draft")+'</button>';
     return `<article class="batch-group-card" data-group="${gi}">
     <div class="batch-group-heading"><strong>${gi===groupIndexes.length-1 && unassigned.length ? "Unassigned Photos" : "Item "+(gi+1)}</strong><span>${indexes.length} photo${indexes.length===1?"":"s"}</span></div>
