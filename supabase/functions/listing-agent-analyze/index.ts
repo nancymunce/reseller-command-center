@@ -13,7 +13,9 @@ Deno.serve(async (req) => {
     const key=Deno.env.get("OPENAI_API_KEY");
     if(!key) return new Response(JSON.stringify({error:"Listing Agent AI is not configured yet"}),{status:503,headers:{...cors,"Content-Type":"application/json"}});
     const {images=[],facts={}}=await req.json();
-    if(!images.length) throw new Error("At least one photo is required");
+    if(!Array.isArray(images)||!images.length) throw new Error("At least one photo is required");
+    if(images.length>12) throw new Error("A maximum of 12 analysis photos is allowed per request");
+    if(images.some((image:any)=>typeof image!=="string"||!image.startsWith("data:image/"))) throw new Error("Analysis photos must be image data URLs");
     const prompt=`You are an expert resale listing assistant. Analyze only what the photos support. Do not invent maker, model, age, material, condition, provenance, dimensions, or measurements. Clearly flag uncertainty. Produce a concise marketplace-ready draft. User facts: ${JSON.stringify(facts)}. Return ONLY valid JSON with keys title, brand, category, condition, suggested_price, description, research_notes, item_specifics. item_specifics must be a JSON object of useful marketplace attributes supported by the photos or user facts (for example Brand, Type, Color, Material, Pattern, Style, Era, Model, Features, Department, Size). Omit uncertain or unsupported attributes rather than guessing.`;
     const input=[{role:"user",content:[{type:"input_text",text:prompt},...images.map((image:string)=>({type:"input_image",image_url:image}))]}];
     const r=await fetch("https://api.openai.com/v1/responses",{method:"POST",headers:{"Authorization":`Bearer ${key}`,"Content-Type":"application/json"},body:JSON.stringify({model:"gpt-5.6",input})});
