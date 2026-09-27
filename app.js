@@ -1051,8 +1051,19 @@ function currentBatchGroupIndexes() {
 }
 
 function fileToDataUrl(file){return new Promise((resolve,reject)=>{const reader=new FileReader();reader.onload=()=>resolve(reader.result);reader.onerror=reject;reader.readAsDataURL(file);});}
+async function fileToAnalysisDataUrl(file){
+  try{
+    const bitmap=await createImageBitmap(file),max=1600,scale=Math.min(1,max/Math.max(bitmap.width,bitmap.height)),width=Math.max(1,Math.round(bitmap.width*scale)),height=Math.max(1,Math.round(bitmap.height*scale));
+    const canvas=document.createElement("canvas");canvas.width=width;canvas.height=height;
+    const ctx=canvas.getContext("2d");ctx.fillStyle="#fff";ctx.fillRect(0,0,width,height);ctx.drawImage(bitmap,0,0,width,height);bitmap.close?.();
+    return canvas.toDataURL("image/jpeg",0.86);
+  }catch(error){
+    console.warn("Could not optimize analysis photo; using original",file?.name,error);
+    return fileToDataUrl(file);
+  }
+}
 async function analyzeListingPhotoFiles(files,facts={}){
-  const images=await Promise.all(files.map(fileToDataUrl));
+  const images=await Promise.all(files.map(fileToAnalysisDataUrl));
   const {data,error}=await supabaseClient.functions.invoke("listing-agent-analyze",{body:{images,facts}});
   if(error)throw error;if(data?.error)throw new Error(data.error);
   return data?.draft||{};
