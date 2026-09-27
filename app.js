@@ -962,9 +962,11 @@ let batchListingPhotos = [];
 let batchListingGroups = [];
 let batchManualGroups = null;
 let batchSelectedPhotos = new Set();
+let batchPreparationState = new Map();
 
 function resetBatchGroups() {
   batchManualGroups = null;
+  batchPreparationState.clear();
   batchListingGroups = batchListingPhotos.length ? [{ start: 0, end: batchListingPhotos.length - 1 }] : [];
 }
 
@@ -1048,25 +1050,45 @@ async function prepareMasterDraftFromPhotos(files,label="Batch item"){
   const id=crypto.randomUUID();
   const draft=await analyzeListingPhotoFiles(files,{notes:"Prepared from Batch Photo Intake. Review all AI-generated fields before approval."});
   const paths=await uploadListingPhotos(id,files);
-  const item={id,title:String(draft.title||label).trim()||label,brand:String(draft.brand||"").trim(),category:String(draft.category||"").trim(),purchaseCost:0,costStatus:"unknown",purchaseDate:"",source:"",storage:"",status:"Unlisted",listPrice:Number(draft.suggested_price||0),listedMarketplaces:[],saleMarketplace:"",saleDate:"",salePrice:0,shippingCollected:0,fees:0,shippingCost:0,otherExpenses:0,notes:"",listingDescription:String(draft.description||"").trim(),itemCondition:String(draft.condition||"").trim(),researchNotes:String(draft.research_notes||"").trim(),draftStatus:"draft",ebayCategoryId:"",ebayConditionId:"",ebayItemSpecifics:{},listingPhotoPaths:paths};
+  const item={id,title:String(draft.title||label).trim()||label,brand:String(draft.brand||"").trim(),category:String(draft.category||"").trim(),purchaseCost:0,costStatus:"unknown",purchaseDate:"",source:"",storage:"",status:"Unlisted",listPrice:Number(draft.suggested_price||0),listedMarketplaces:[],saleMarketplace:"",saleDate:"",salePrice:0,shippingCollected:0,fees:0,shippingCost:0,otherExpenses:0,notes:"",listingDescription:String(draft.description||"").trim(),itemCondition:String(draft.condition||"").trim(),researchNotes:String(draft.research_notes||"").trim(),draftStatus:"draft",ebayCategoryId:"",ebayConditionId:"",ebayItemSpecifics:(draft.item_specifics&&typeof draft.item_specifics==="object"&&!Array.isArray(draft.item_specifics))?draft.item_specifics:{},listingPhotoPaths:paths};
   try{return await saveCloudItem(item);}
   catch(error){try{await removeListingPhotoFiles(paths);}catch(rollbackError){console.error("Could not roll back batch draft photos",rollbackError);}throw error;}
+}
+function batchGroupKey(indexes){return indexes.join("-");}
+async function prepareOneBatchGroup(groupIndex){
+  const groups=currentBatchGroupIndexes(),indexes=groups[groupIndex]||[],key=batchGroupKey(indexes);
+  if(!indexes.length)throw new Error("This item group has no photos.");
+  const prior=batchPreparationState.get(key);
+  if(prior?.status==="created")return prior.item;
+  batchPreparationState.set(key,{status:"preparing"});renderBatchIntake();
+  const files=indexes.map(i=>batchListingPhotos[i]).filter(Boolean);
+  try{
+    const saved=await prepareMasterDraftFromPhotos(files,"Batch Item "+(groupIndex+1));
+    items.unshift(saved);
+    batchPreparationState.set(key,{status:"created",item:saved});
+    renderAll();renderBatchIntake();
+    return saved;
+  }catch(error){
+    batchPreparationState.set(key,{status:"failed",error:error?.message||"Preparation failed"});
+    renderBatchIntake();
+    throw error;
+  }
 }
 async function prepareAllBatchMasterDrafts(){
   const groups=currentBatchGroupIndexes().filter(g=>g.length);
   if(!groups.length){toast("Create at least one photo group first");return;}
-  const button=$("prepareBatchDraftsBtn");if(button){button.disabled=true;button.textContent="Preparing 0 / "+groups.length+"…";}
+  const button=$("prepareBatchDraftsBtn"),pending=groups.map((g,i)=>({g,i,key:batchGroupKey(g)})).filter(x=>batchPreparationState.get(x.key)?.status!=="created");
+  if(!pending.length){toast("All current item groups already have prepared drafts");showView("master-drafts");return;}
+  if(button){button.disabled=true;button.textContent="Preparing 0 / "+pending.length+"…";}
   const created=[],failures=[];
-  for(let gi=0;gi<groups.length;gi++){
-    if(button)button.textContent="Preparing "+(gi+1)+" / "+groups.length+"…";
-    const files=groups[gi].map(i=>batchListingPhotos[i]).filter(Boolean);
-    try{const saved=await prepareMasterDraftFromPhotos(files,"Batch Item "+(gi+1));items.unshift(saved);created.push(saved);}
-    catch(error){console.error("Batch draft preparation failed",gi,error);failures.push({group:gi+1,error});}
+  for(let n=0;n<pending.length;n++){
+    if(button)button.textContent="Preparing "+(n+1)+" / "+pending.length+"…";
+    try{const saved=await prepareOneBatchGroup(pending[n].i);created.push(saved);}
+    catch(error){console.error("Batch draft preparation failed",pending[n].i,error);failures.push({group:pending[n].i+1,error});}
   }
-  renderAll();
   if(button){button.disabled=false;button.textContent="Prepare All Master Drafts";}
   if(created.length){showView("master-drafts");toast(created.length+" prepared Master Draft"+(created.length===1?"":"s")+" created");}
-  if(failures.length)alert(created.length+" draft(s) were prepared, but "+failures.length+" group(s) failed. Failed groups stayed in Batch Photo Intake so you can retry them.");
+  if(failures.length)alert(created.length+" draft(s) were prepared, but "+failures.length+" group(s) failed. Use Retry on the failed group(s); successful groups will not be duplicated.");
 }
 
 function renderBatchIntake() {
@@ -1084,11 +1106,17 @@ function renderBatchIntake() {
     batchManualGroups.push(unassigned);
     groupIndexes=batchManualGroups;
   }
-  groups.innerHTML=groupIndexes.map((indexes,gi)=>`<article class="batch-group-card" data-group="${gi}">
+  groups.innerHTML=groupIndexes.map((indexes,gi)=>{
+    const prep=batchPreparationState.get(batchGroupKey(indexes)),status=prep?.status||"idle";
+    const statusText=status==="created"?"Draft prepared":status==="preparing"?"Preparing…":status==="failed"?"Preparation failed":"Not prepared";
+    const prepButton=status==="created"?'<button class="secondary open-prepared-draft" type="button" data-group="'+gi+'">Open Draft</button>':status==="preparing"?'<button class="secondary" type="button" disabled>Preparing…</button>':'<button class="primary prepare-batch-group" type="button" data-group="'+gi+'">'+(status==="failed"?"Retry Draft":"Prepare Draft")+'</button>';
+    return `<article class="batch-group-card" data-group="${gi}">
     <div class="batch-group-heading"><strong>${gi===groupIndexes.length-1 && unassigned.length ? "Unassigned Photos" : "Item "+(gi+1)}</strong><span>${indexes.length} photo${indexes.length===1?"":"s"}</span></div>
+    <div class="batch-group-status batch-status-${status}">${statusText}${status==="failed"&&prep?.error?" · "+escapeHtml(prep.error):""}</div>
     <div class="batch-group-thumbs batch-drop-target" data-group="${gi}">${indexes.map(idx=>`<figure class="batch-draggable ${batchSelectedPhotos.has(idx) ? "selected" : ""}" draggable="true" data-photo="${idx}"><img src="${URL.createObjectURL(batchListingPhotos[idx])}" alt="Item ${gi+1} photo"><figcaption>${idx+1}</figcaption></figure>`).join("")}</div>
-    <div class="batch-group-actions"><button class="primary use-batch-group" type="button" data-group="${gi}">Open in Listing Agent</button><button class="danger ghost delete-batch-group" type="button" data-group="${gi}">Delete Group</button></div>
-  </article>`).join("")+`<button id="batchAddGroupBtn" class="secondary" type="button">+ Add Empty Item Group</button>`;
+    <div class="batch-group-actions">${prepButton}<button class="secondary use-batch-group" type="button" data-group="${gi}">Open in Listing Agent</button><button class="danger ghost delete-batch-group" type="button" data-group="${gi}">Delete Group</button></div>
+  </article>`;
+  }).join("")+`<button id="batchAddGroupBtn" class="secondary" type="button">+ Add Empty Item Group</button>`;
 
   document.querySelectorAll(".batch-draggable").forEach(el=>{
     el.addEventListener("click",e=>{
@@ -1135,6 +1163,15 @@ function renderBatchIntake() {
     batchSelectedPhotos.clear();
     renderBatchIntake();
     $("batchHelp").textContent="Group deleted. Its photos are still available in the workspace.";
+  }));
+  document.querySelectorAll(".prepare-batch-group").forEach(button=>button.addEventListener("click",async()=>{
+    const gi=Number(button.dataset.group);button.disabled=true;
+    try{const saved=await prepareOneBatchGroup(gi);toast("Prepared Master Draft created");showView("master-drafts");openMasterDraft(saved.id);}
+    catch(error){alert("Could not prepare this draft. "+(error?.message||"Unknown error"));}
+  }));
+  document.querySelectorAll(".open-prepared-draft").forEach(button=>button.addEventListener("click",()=>{
+    const indexes=currentBatchGroupIndexes()[Number(button.dataset.group)]||[],prepared=batchPreparationState.get(batchGroupKey(indexes));
+    if(prepared?.item){showView("master-drafts");openMasterDraft(prepared.item.id);}
   }));
   document.querySelectorAll(".use-batch-group").forEach(button=>button.addEventListener("click",()=>{
     const indexes=currentBatchGroupIndexes()[Number(button.dataset.group)]||[];
