@@ -1198,6 +1198,7 @@ function splitBatchAfter(index) {
 }
 
 let listingAgentPhotos = [];
+let listingAgentDraftData = null;
 function renderListingAgentPhotos() {
   const box=$("listingPhotoPreview"), button=$("analyzeListingPhotosBtn"); if(!box||!button)return;
   box.innerHTML=listingAgentPhotos.map((file,i)=>`<figure><img src="${URL.createObjectURL(file)}" alt="Item photo ${i+1}"><figcaption>Photo ${i+1}</figcaption></figure>`).join("");
@@ -1496,17 +1497,30 @@ $("analyzeListingPhotosBtn")?.addEventListener("click", async () => {
   $("listingAgentStatus").textContent="Analyzing photos…"; $("listingAgentMessage").textContent="Building an editable listing draft.";
   try {
     const facts={cost:$("agentCost").value||null,cost_status:$("agentCostStatus").value,source:$("agentSource").value.trim(),storage:$("agentStorage").value.trim(),notes:$("agentNotes").value.trim()};
-    const d=await analyzeListingPhotoFiles(listingAgentPhotos,facts); $("agentDraftTitle").value=d.title||""; $("agentDraftBrand").value=d.brand||""; $("agentDraftCategory").value=d.category||""; $("agentDraftCondition").value=d.condition||""; $("agentDraftPrice").value=d.suggested_price||""; $("agentDraftDescription").value=d.description||""; $("agentDraftResearch").value=d.research_notes||""; $("listingDraftPanel").hidden=false;
+    const d=await analyzeListingPhotoFiles(listingAgentPhotos,facts);listingAgentDraftData=d;
+    $("agentDraftTitle").value=d.title||""; $("agentDraftBrand").value=d.brand||""; $("agentDraftCategory").value=d.category||""; $("agentDraftCondition").value=d.condition||""; $("agentDraftPrice").value=d.suggested_price||""; $("agentDraftDescription").value=d.description||""; $("agentDraftResearch").value=d.research_notes||""; $("listingDraftPanel").hidden=false;
     $("listingAgentStatus").textContent="Draft ready for review"; $("listingAgentMessage").textContent="Review everything below. Nothing is saved until you approve it.";
   } catch(error) { $("listingAgentStatus").textContent="AI connection not ready"; $("listingAgentMessage").textContent=error.message||"Could not analyze these photos."; }
   finally {button.disabled=false;}
 });
-$("discardAgentDraftBtn")?.addEventListener("click",()=>{$("listingDraftPanel").hidden=true;$("listingAgentStatus").textContent="Photos ready";$("listingAgentMessage").textContent="Analyze again whenever you are ready.";});
+$("discardAgentDraftBtn")?.addEventListener("click",()=>{listingAgentDraftData=null;$("listingDraftPanel").hidden=true;$("listingAgentStatus").textContent="Photos ready";$("listingAgentMessage").textContent="Analyze again whenever you are ready.";});
 $("approveAgentDraftBtn")?.addEventListener("click",async()=>{
-  const costStatus=$("agentCostStatus").value, cost=costStatus==="free"?0:Number($("agentCost").value||0);
-  const item={id:crypto.randomUUID(),title:$("agentDraftTitle").value.trim(),brand:$("agentDraftBrand").value.trim(),category:$("agentDraftCategory").value.trim(),purchaseCost:cost,costStatus,purchaseDate:new Date().toISOString().slice(0,10),source:$("agentSource").value.trim(),storage:$("agentStorage").value.trim(),status:"Unlisted",listPrice:Number($("agentDraftPrice").value||0),listedMarketplaces:[],saleMarketplace:"",saleDate:"",salePrice:0,shippingCollected:0,fees:0,shippingCost:0,otherExpenses:0,notes:[ $("agentDraftDescription").value.trim(), $("agentDraftCondition").value.trim() ? "Condition: "+$("agentDraftCondition").value.trim() : "", $("agentDraftResearch").value.trim() ? "AI research notes: "+$("agentDraftResearch").value.trim() : "" ].filter(Boolean).join("\n\n")};
+  const costStatus=$("agentCostStatus").value, cost=costStatus==="free"?0:Number($("agentCost").value||0),id=crypto.randomUUID();
+  const item={id,title:$("agentDraftTitle").value.trim(),brand:$("agentDraftBrand").value.trim(),category:$("agentDraftCategory").value.trim(),purchaseCost:cost,costStatus,purchaseDate:new Date().toISOString().slice(0,10),source:$("agentSource").value.trim(),storage:$("agentStorage").value.trim(),status:"Unlisted",listPrice:Number($("agentDraftPrice").value||0),listedMarketplaces:[],saleMarketplace:"",saleDate:"",salePrice:0,shippingCollected:0,fees:0,shippingCost:0,otherExpenses:0,notes:$("agentNotes").value.trim(),listingDescription:$("agentDraftDescription").value.trim(),itemCondition:$("agentDraftCondition").value.trim(),researchNotes:$("agentDraftResearch").value.trim(),draftStatus:"draft",ebayCategoryId:"",ebayConditionId:"",ebayItemSpecifics:(listingAgentDraftData?.item_specifics&&typeof listingAgentDraftData.item_specifics==="object"&&!Array.isArray(listingAgentDraftData.item_specifics))?listingAgentDraftData.item_specifics:{},listingPhotoPaths:[]};
   if(!item.title){toast("Give the listing a title first");return;}
-  try{const saved=await saveCloudItem(item);items.unshift(saved);renderAll();$("listingDraftPanel").hidden=true;$("listingAgentStatus").textContent="Added to inventory";$("listingAgentMessage").textContent="The approved draft is now a master inventory item. Marketplace publishing comes next.";toast("Listing added to inventory");}catch(error){alert("Could not add listing. "+error.message);}
+  if(!listingAgentPhotos.length){toast("Add at least one listing photo first");return;}
+  const button=$("approveAgentDraftBtn");button.disabled=true;button.textContent="Saving Master Draft…";
+  let paths=[];
+  try{
+    paths=await uploadListingPhotos(id,listingAgentPhotos);
+    let saved;
+    try{saved=await saveCloudItem({...item,listingPhotoPaths:paths});}
+    catch(saveError){try{await removeListingPhotoFiles(paths);}catch(rollbackError){console.error("Could not roll back single-item draft photos",rollbackError);}throw saveError;}
+    items.unshift(saved);renderAll();listingAgentDraftData=null;$("listingDraftPanel").hidden=true;
+    $("listingAgentStatus").textContent="Master Draft ready";$("listingAgentMessage").textContent="The draft and its photos are saved in Master Drafts for your review. Nothing was sent to eBay.";
+    toast("Master Draft saved");showView("master-drafts");openMasterDraft(saved.id);
+  }catch(error){alert("Could not save Master Draft. "+error.message);}
+  finally{button.disabled=false;button.textContent="Save as Master Draft";}
 });
 $("closeDialogBtn").addEventListener("click", () => $("itemDialog").close());
 $("cancelBtn").addEventListener("click", () => $("itemDialog").close());
