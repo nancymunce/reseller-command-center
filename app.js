@@ -1089,7 +1089,19 @@ async function analyzeListingPhotoFiles(files,facts={}){
   const images=await Promise.all(sample.map(fileToAnalysisDataUrl));
   const analysisFacts={...facts,photo_count:files.length,analysis_photo_count:sample.length};
   const {data,error}=await supabaseClient.functions.invoke("listing-agent-analyze",{body:{images,facts:analysisFacts}});
-  if(error)throw error;if(data?.error)throw new Error(data.error);
+  if(error){
+    let detail="";
+    try{
+      if(error.context&&typeof error.context.json==="function"){
+        const body=await error.context.json();
+        detail=body?.error||body?.message||JSON.stringify(body);
+      }
+    }catch(parseError){
+      try{detail=await error.context?.text?.()||"";}catch{}
+    }
+    throw new Error(detail||error.message||"Edge Function request failed");
+  }
+  if(data?.error)throw new Error(data.error);
   return data?.draft||{};
 }
 async function prepareMasterDraftFromPhotos(files,label="Batch item"){
