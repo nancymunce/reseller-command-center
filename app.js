@@ -1036,6 +1036,39 @@ function currentBatchGroupIndexes() {
   return batchListingGroups.map(group => Array.from({length: group.end-group.start+1}, (_,i)=>group.start+i));
 }
 
+function fileToDataUrl(file){return new Promise((resolve,reject)=>{const reader=new FileReader();reader.onload=()=>resolve(reader.result);reader.onerror=reject;reader.readAsDataURL(file);});}
+async function analyzeListingPhotoFiles(files,facts={}){
+  const images=await Promise.all(files.map(fileToDataUrl));
+  const {data,error}=await supabaseClient.functions.invoke("listing-agent-analyze",{body:{images,facts}});
+  if(error)throw error;if(data?.error)throw new Error(data.error);
+  return data?.draft||{};
+}
+async function prepareMasterDraftFromPhotos(files,label="Batch item"){
+  if(!files?.length)throw new Error(label+" has no photos.");
+  const id=crypto.randomUUID();
+  const draft=await analyzeListingPhotoFiles(files,{notes:"Prepared from Batch Photo Intake. Review all AI-generated fields before approval."});
+  const paths=await uploadListingPhotos(id,files);
+  const item={id,title:String(draft.title||label).trim()||label,brand:String(draft.brand||"").trim(),category:String(draft.category||"").trim(),purchaseCost:0,costStatus:"unknown",purchaseDate:"",source:"",storage:"",status:"Unlisted",listPrice:Number(draft.suggested_price||0),listedMarketplaces:[],saleMarketplace:"",saleDate:"",salePrice:0,shippingCollected:0,fees:0,shippingCost:0,otherExpenses:0,notes:"",listingDescription:String(draft.description||"").trim(),itemCondition:String(draft.condition||"").trim(),researchNotes:String(draft.research_notes||"").trim(),draftStatus:"draft",ebayCategoryId:"",ebayConditionId:"",ebayItemSpecifics:{},listingPhotoPaths:paths};
+  try{return await saveCloudItem(item);}
+  catch(error){try{await removeListingPhotoFiles(paths);}catch(rollbackError){console.error("Could not roll back batch draft photos",rollbackError);}throw error;}
+}
+async function prepareAllBatchMasterDrafts(){
+  const groups=currentBatchGroupIndexes().filter(g=>g.length);
+  if(!groups.length){toast("Create at least one photo group first");return;}
+  const button=$("prepareBatchDraftsBtn");if(button){button.disabled=true;button.textContent="Preparing 0 / "+groups.length+"…";}
+  const created=[],failures=[];
+  for(let gi=0;gi<groups.length;gi++){
+    if(button)button.textContent="Preparing "+(gi+1)+" / "+groups.length+"…";
+    const files=groups[gi].map(i=>batchListingPhotos[i]).filter(Boolean);
+    try{const saved=await prepareMasterDraftFromPhotos(files,"Batch Item "+(gi+1));items.unshift(saved);created.push(saved);}
+    catch(error){console.error("Batch draft preparation failed",gi,error);failures.push({group:gi+1,error});}
+  }
+  renderAll();
+  if(button){button.disabled=false;button.textContent="Prepare All Master Drafts";}
+  if(created.length){showView("master-drafts");toast(created.length+" prepared Master Draft"+(created.length===1?"":"s")+" created");}
+  if(failures.length)alert(created.length+" draft(s) were prepared, but "+failures.length+" group(s) failed. Failed groups stayed in Batch Photo Intake so you can retry them.");
+}
+
 function renderBatchIntake() {
   const tray=$("batchPhotoTray"), groups=$("batchGroups"), controls=$("batchGroupControls"), count=$("batchPhotoCount"), split=$("batchSplitAfter");
   if(!tray||!groups||!controls||!count||!split)return;
@@ -1344,6 +1377,7 @@ $("batchListingPhotos")?.addEventListener("change", e => {
 });
 $("batchSplitBtn")?.addEventListener("click", () => splitBatchAfter(Number($("batchSplitAfter").value)));
 $("batchAutoGroupBtn")?.addEventListener("click", proposeBatchGroups);
+$("prepareBatchDraftsBtn")?.addEventListener("click",prepareAllBatchMasterDrafts);
 $("batchOneGroupBtn")?.addEventListener("click", () => { resetBatchGroups(); renderBatchIntake(); });
 $("batchClearBtn")?.addEventListener("click", () => {
   batchListingPhotos = []; batchListingGroups = []; $("batchListingPhotos").value = ""; renderBatchIntake();
@@ -1359,11 +1393,10 @@ I am attaching photos of one resale item. Please act as my listing agent.
 1. Examine every photo carefully, including maker's marks, labels, signatures, model numbers, pattern details, condition and damage.
 2. Identify the item as accurately as the evidence allows. Do not invent brand, model, age, material, provenance, dimensions or pattern.
 3. Research appropriate eBay pricing/comparables if available.
-4. Create a strong eBay title, select the best category, condition and relevant item specifics, and write an accurate buyer-friendly description.
-5. Use the photos I attach for the listing.
-6. Before publishing, show me the proposed title and price if you encounter meaningful uncertainty about identification or value. Otherwise proceed using my normal eBay account/session.
-7. Publish the listing on eBay.
-8. When finished, return the eBay item number, listing URL, final title, final list price and any important identification notes so I can record them in my Reseller Command Center.
+4. Create a strong proposed eBay title, category, condition, relevant item specifics, suggested price, and an accurate buyer-friendly description.
+5. Use the photos only for analysis and draft preparation.
+6. Do not log in to eBay, publish, revise, end, or otherwise touch my eBay account. I will handle every eBay action myself.
+7. Return the finished draft plus important identification notes and any uncertainty I should verify before I list it.
 
 MY BUSINESS-SIDE DETAILS
 Cost: ${costLine}
@@ -1422,10 +1455,8 @@ $("analyzeListingPhotosBtn")?.addEventListener("click", async () => {
   const button=$("analyzeListingPhotosBtn"); button.disabled=true;
   $("listingAgentStatus").textContent="Analyzing photos…"; $("listingAgentMessage").textContent="Building an editable listing draft.";
   try {
-    const images=await Promise.all(listingAgentPhotos.map(file=>new Promise((resolve,reject)=>{const reader=new FileReader();reader.onload=()=>resolve(reader.result);reader.onerror=reject;reader.readAsDataURL(file);})));
     const facts={cost:$("agentCost").value||null,cost_status:$("agentCostStatus").value,source:$("agentSource").value.trim(),storage:$("agentStorage").value.trim(),notes:$("agentNotes").value.trim()};
-    const {data,error}=await supabaseClient.functions.invoke("listing-agent-analyze",{body:{images,facts}}); if(error) throw error; if(data?.error) throw new Error(data.error);
-    const d=data.draft||{}; $("agentDraftTitle").value=d.title||""; $("agentDraftBrand").value=d.brand||""; $("agentDraftCategory").value=d.category||""; $("agentDraftCondition").value=d.condition||""; $("agentDraftPrice").value=d.suggested_price||""; $("agentDraftDescription").value=d.description||""; $("agentDraftResearch").value=d.research_notes||""; $("listingDraftPanel").hidden=false;
+    const d=await analyzeListingPhotoFiles(listingAgentPhotos,facts); $("agentDraftTitle").value=d.title||""; $("agentDraftBrand").value=d.brand||""; $("agentDraftCategory").value=d.category||""; $("agentDraftCondition").value=d.condition||""; $("agentDraftPrice").value=d.suggested_price||""; $("agentDraftDescription").value=d.description||""; $("agentDraftResearch").value=d.research_notes||""; $("listingDraftPanel").hidden=false;
     $("listingAgentStatus").textContent="Draft ready for review"; $("listingAgentMessage").textContent="Review everything below. Nothing is saved until you approve it.";
   } catch(error) { $("listingAgentStatus").textContent="AI connection not ready"; $("listingAgentMessage").textContent=error.message||"Could not analyze these photos."; }
   finally {button.disabled=false;}
