@@ -495,3 +495,10 @@ legend { font-weight: 800; padding: 0 6px; }
 .specific-row{display:grid;grid-template-columns:minmax(140px,.8fr) minmax(180px,1.4fr) auto;gap:8px;align-items:center}
 .specific-row .remove-specific{white-space:nowrap}
 @media(max-width:620px){.specific-row{grid-template-columns:1fr}.specific-row .remove-specific{justify-self:start}.master-draft-photo-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+
+/* Batch preparation status */
+.batch-group-status{margin:-2px 0 10px;padding:7px 9px;border-radius:9px;font-size:.78rem;font-weight:800;background:#f3eee7;color:#755f42}
+.batch-status-created{background:#e8f4ea;color:#2a6738}
+.batch-status-preparing{background:var(--soft);color:var(--accent-dark)}
+.batch-status-failed{background:#f5e6df;color:#8b442a}
+.batch-group-actions button:disabled{opacity:.55;cursor:not-allowed}
