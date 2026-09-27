@@ -973,7 +973,7 @@ function showView(viewId) {
 const stagedPhotoObjectUrls=new Map();
 function photoObjectUrl(file){
   if(stagedPhotoObjectUrls.has(file))return stagedPhotoObjectUrls.get(file);
-  const url=photoObjectUrl(file);stagedPhotoObjectUrls.set(file,url);return url;
+  const url=URL.createObjectURL(file);stagedPhotoObjectUrls.set(file,url);return url;
 }
 function releaseUnusedPhotoObjectUrls(keepFiles=[]){
   const keep=new Set(keepFiles);
