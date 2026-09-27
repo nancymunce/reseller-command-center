@@ -1518,15 +1518,21 @@ $("saveMuseResultBtn")?.addEventListener("click",async()=>{
   const cost=p.cost!==null?p.cost:(costStatus==="free"?0:Number($("agentCost").value||0));
   const item={id:crypto.randomUUID(),title:p.title,brand:"",category:"",purchaseCost:cost,costStatus:p.cost!==null?"known":costStatus,purchaseDate:"",source:p.source||$("agentSource").value.trim(),storage:p.bin||$("agentStorage").value.trim(),status:"Listed",listPrice:p.price,listedMarketplaces:["eBay"],saleMarketplace:"",saleDate:"",salePrice:0,shippingCollected:0,fees:0,shippingCost:0,otherExpenses:0,notes:[p.notes,p.url?`eBay: ${p.url}`:"",p.item?`eBay item number: ${p.item}`:""].filter(Boolean).join("\n\n")};
   const button=$("saveMuseResultBtn"); button.disabled=true;
+  let saved=null;
   try{
-    const saved=await saveCloudItem(item);
-    const {error}=await supabaseClient.from("marketplace_listings").upsert({inventory_item_id:saved.id,marketplace:"eBay",external_listing_id:p.item,listing_url:p.url||null,title:p.title,status:"active",price:p.price||null,currency:"USD",raw_data:{source:"Muse handoff",response:p.raw},listed_at:new Date().toISOString(),last_synced_at:new Date().toISOString()},{onConflict:"owner_id,marketplace,external_listing_id"});
+    saved=await saveCloudItem(item);
+    const {error}=await supabaseClient.from("marketplace_listings").upsert({inventory_item_id:saved.id,marketplace:"eBay",external_listing_id:p.item,listing_url:p.url||null,title:p.title,status:"active",price:p.price||null,currency:"USD",raw_data:{source:"Manual eBay record",response:p.raw},listed_at:new Date().toISOString(),last_synced_at:new Date().toISOString()},{onConflict:"owner_id,marketplace,external_listing_id"});
     if(error)throw error;
     items.unshift(saved);renderAll();
-    $("listingAgentStatus").textContent="Live on eBay ✓"; $("listingAgentMessage").textContent=`eBay #${p.item} is linked to the master inventory record.`;
-    toast("eBay listing linked to inventory");
+    $("listingAgentStatus").textContent="eBay listing recorded ✓"; $("listingAgentMessage").textContent=`Your manually created eBay listing #${p.item} is linked to the inventory record.`;
+    toast("eBay listing recorded");
     $("museResultText").value="";$("museResultPreview").hidden=true;parsedMuseResult=null;
-  }catch(error){alert("Nothing was changed intentionally if the save failed. Error: "+error.message);button.disabled=false;}
+  }catch(error){
+    let rollbackFailed=false;
+    if(saved){try{await deleteCloudItem(saved.id);}catch(rollbackError){rollbackFailed=true;console.error("Could not roll back inventory record after listing-link failure",rollbackError);}}
+    alert((rollbackFailed?"The listing link failed and the new inventory record could not be rolled back automatically. Review inventory for a partial record. ":"The listing link failed and the new inventory record was rolled back. ")+error.message);
+    button.disabled=false;
+  }
 });
 
 $("analyzeListingPhotosBtn")?.addEventListener("click", async () => {
