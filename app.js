@@ -1194,7 +1194,7 @@ function renderBatchIntake() {
     <div class="batch-group-heading"><strong>${gi===groupIndexes.length-1 && unassigned.length ? "Unassigned Photos" : "Item "+(gi+1)}</strong><span>${indexes.length} photo${indexes.length===1?"":"s"}</span></div>
     <div class="batch-group-status batch-status-${status}">${statusText}${status==="failed"&&prep?.error?" · "+escapeHtml(prep.error):""}</div>
     <div class="batch-group-thumbs batch-drop-target ${status==="created"?"batch-group-locked":""}" data-group="${gi}" data-locked="${status==="created"?"true":"false"}">${indexes.map(idx=>`<figure class="batch-draggable ${batchSelectedPhotos.has(idx) ? "selected" : ""} ${status==="created"?"locked":""}" draggable="${status==="created"?"false":"true"}" data-photo="${idx}"><img src="${photoObjectUrl(batchListingPhotos[idx])}" alt="Item ${gi+1} photo"><figcaption>${idx+1}</figcaption></figure>`).join("")}</div>
-    <div class="batch-group-actions">${prepButton}<button class="secondary use-batch-group" type="button" data-group="${gi}">Open in Listing Agent</button><button class="danger ghost delete-batch-group" type="button" data-group="${gi}" ${status==="created"?"disabled":""}>Delete Group</button></div>
+    <div class="batch-group-actions">${prepButton}<button class="secondary use-batch-group" type="button" data-group="${gi}">Use Muse (Free)</button><button class="danger ghost delete-batch-group" type="button" data-group="${gi}" ${status==="created"?"disabled":""}>Delete Group</button></div>
   </article>`;
   }).join("")+`<button id="batchAddGroupBtn" class="secondary" type="button">+ Add Empty Item Group</button>`;
 
@@ -1250,7 +1250,14 @@ function renderBatchIntake() {
   document.querySelectorAll(".prepare-batch-group").forEach(button=>button.addEventListener("click",async()=>{
     const gi=Number(button.dataset.group);button.disabled=true;
     try{const saved=await prepareOneBatchGroup(gi);toast("Prepared Master Draft created");showView("master-drafts");openMasterDraft(saved.id);}
-    catch(error){alert("Could not prepare this draft. "+(error?.message||"Unknown error"));}
+    catch(error){
+      const message=error?.message||"Unknown error";
+      if(/no credits remaining|billing|quota/i.test(message)){
+        alert("Paid API analysis is unavailable right now. Use the “Use Muse (Free)” button on this item group instead.");
+      }else{
+        alert("Could not prepare this draft. "+message);
+      }
+    }
   }));
   document.querySelectorAll(".open-prepared-draft").forEach(button=>button.addEventListener("click",()=>{
     const indexes=currentBatchGroupIndexes()[Number(button.dataset.group)]||[],prepared=batchPreparationState.get(batchGroupKey(indexes));
@@ -1258,11 +1265,11 @@ function renderBatchIntake() {
   }));
   document.querySelectorAll(".use-batch-group").forEach(button=>button.addEventListener("click",()=>{
     const indexes=currentBatchGroupIndexes()[Number(button.dataset.group)]||[];
-    listingAgentPhotos=indexes.map(i=>batchListingPhotos[i]);
+    listingAgentPhotos=indexes.map(i=>batchListingPhotos[i]).filter(Boolean);
     renderListingAgentPhotos();
-    $("listingAgentStatus").textContent="Item group ready";
-    $("listingAgentMessage").textContent="This group's photos are loaded below. Add any business details you know, then create the master listing draft.";
-    $("listingPhotoPreview").scrollIntoView({behavior:"smooth",block:"center"});
+    $("listingAgentStatus").textContent="Muse draft ready";
+    $("listingAgentMessage").textContent="This group's photos are staged for the free Muse workflow. Review any business details you know, then copy the prepared Muse instructions.";
+    $("sendToMuseBtn")?.click();
   }));
 }
 
