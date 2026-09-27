@@ -23,6 +23,27 @@ Deno.serve(async (req) => {
     const text=data.output?.flatMap((o:any)=>o.content||[]).find((x:any)=>x.type==="output_text")?.text;
     if(!text) throw new Error("No draft returned");
     let draft; try{draft=JSON.parse(text.replace(/^\`\`\`json\s*|\`\`\`$/g,"").trim())}catch{throw new Error("AI returned an unreadable draft")};
+    if(!draft||typeof draft!=="object"||Array.isArray(draft)) throw new Error("AI returned an invalid draft object");
+    const cleanSpecifics:Record<string,string>={};
+    if(draft.item_specifics&&typeof draft.item_specifics==="object"&&!Array.isArray(draft.item_specifics)){
+      for(const [key,value] of Object.entries(draft.item_specifics)){
+        const k=String(key||"").trim(); if(!k) continue;
+        const v=Array.isArray(value)?value.map(x=>String(x??"").trim()).filter(Boolean).join(", "):["string","number","boolean"].includes(typeof value)?String(value).trim():"";
+        if(v) cleanSpecifics[k]=v;
+      }
+    }
+    const price=Number(draft.suggested_price||0);
+    draft={
+      title:String(draft.title||"").trim(),
+      brand:String(draft.brand||"").trim(),
+      category:String(draft.category||"").trim(),
+      condition:String(draft.condition||"").trim(),
+      suggested_price:Number.isFinite(price)&&price>=0?price:0,
+      description:String(draft.description||"").trim(),
+      research_notes:String(draft.research_notes||"").trim(),
+      item_specifics:cleanSpecifics
+    };
+    if(!draft.title&&!draft.description&&!draft.research_notes) throw new Error("AI returned an empty draft");
     return new Response(JSON.stringify({draft}),{headers:{...cors,"Content-Type":"application/json"}});
   } catch(e) {return new Response(JSON.stringify({error:e.message||"Listing Agent failed"}),{status:400,headers:{...cors,"Content-Type":"application/json"}});}
 });
