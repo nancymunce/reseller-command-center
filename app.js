@@ -1131,9 +1131,10 @@ function renderBatchIntake() {
   const layoutLocked=[...batchPreparationState.values()].some(x=>x?.status==="created");
   count.textContent=batchListingPhotos.length+" photo"+(batchListingPhotos.length===1?"":"s");
   tray.innerHTML=batchListingPhotos.map((file,i)=>`<figure><img src="${URL.createObjectURL(file)}" alt="Batch photo ${i+1}"><figcaption>${i+1}</figcaption></figure>`).join("");
-  controls.hidden=batchListingPhotos.length<2;
+  controls.hidden=batchListingPhotos.length===0;
   split.innerHTML=batchListingPhotos.slice(0,-1).map((_,i)=>`<option value="${i}">${i+1}</option>`).join("");
-  ["batchSplitAfter","batchAutoGroupBtn","batchSplitBtn","batchOneGroupBtn"].forEach(id=>{const el=$(id);if(el)el.disabled=layoutLocked;});
+  const cannotRegroup=layoutLocked||batchListingPhotos.length<2;
+  ["batchSplitAfter","batchAutoGroupBtn","batchSplitBtn","batchOneGroupBtn"].forEach(id=>{const el=$(id);if(el)el.disabled=cannotRegroup;});
   let groupIndexes=currentBatchGroupIndexes();
   const assigned=new Set(groupIndexes.flat());
   const unassigned=batchListingPhotos.map((_,i)=>i).filter(i=>!assigned.has(i));
