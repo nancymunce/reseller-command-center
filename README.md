@@ -12,7 +12,7 @@ A local-first reseller inventory and profit dashboard built for Nancy.
 - Dashboard metrics and marketplace profit summaries
 - Filters and search
 - JSON backup and CSV export/import
-- Browser-based storage with no login required
+- Supabase-authenticated cloud inventory with row-level security
 - Browser-assisted Facebook Marketplace sourcing
 - eBay sold-listing research links
 - Net-profit and ROI evaluation with adjustable expense estimates
@@ -32,7 +32,7 @@ Then visit `http://localhost:8000`.
 
 ## Important storage note
 
-This first version stores data in the browser using `localStorage`. Export a JSON backup regularly.
+Inventory is stored in Supabase as the source of truth. Settings and sourcing opportunities still use browser-local storage. JSON/CSV exports remain available as user-controlled backups.
 
 ## Marketplace Scout extension
 
@@ -81,15 +81,19 @@ expected sale price + shipping charged to buyer
 
 Net ROI is estimated net profit divided by the Facebook asking price. The default fee estimate is 13.6% of the buyer's item-and-shipping total plus $0.40, and can be changed for each opportunity.
 
-## Recommended next build
+## Current development priorities
 
-1. Supabase database for login, backup and multi-device access
-2. Secure server-side functions
-3. eBay OAuth connection
-4. eBay order, fees, shipping and payout synchronization
-5. Gmail sale-notification parsing for marketplaces without public seller APIs
-6. Photo uploads, SKU labels and barcode scanning
-7. GitHub Pages deployment
+1. Transaction-safe persistent listing photos
+2. Master Draft review polish and structured item specifics
+3. Batch Photo Intake → AI-prepared Master Drafts
+4. Seller-controlled eBay CSV preparation and manual upload
+5. Sale reconciliation and marketplace status tracking without eBay login automation
+6. Gmail sale-notification parsing for marketplaces where it is useful
+7. SKU labels and barcode scanning
+
+### eBay boundary
+
+The Command Center may research, prepare drafts, generate CSV files, and record listing information that the seller supplies. It must not log in to eBay, publish/revise/end listings, or take account actions. The seller remains the only person who touches eBay.
 
 ## Profit formula
 
