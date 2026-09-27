@@ -1143,7 +1143,7 @@ function renderBatchIntake() {
   if(!tray||!groups||!controls||!count||!split)return;
   const layoutLocked=[...batchPreparationState.values()].some(x=>x?.status==="created");
   count.textContent=batchListingPhotos.length+" photo"+(batchListingPhotos.length===1?"":"s");
-  tray.innerHTML=batchListingPhotos.map((file,i)=>`<figure><img src="${URL.createObjectURL(file)}" alt="Batch photo ${i+1}"><figcaption>${i+1}</figcaption></figure>`).join("");
+  tray.innerHTML=batchListingPhotos.map((file,i)=>`<figure><img src="${photoObjectUrl(file)}" alt="Batch photo ${i+1}"><figcaption>${i+1}</figcaption></figure>`).join("");
   controls.hidden=batchListingPhotos.length===0;
   split.innerHTML=batchListingPhotos.slice(0,-1).map((_,i)=>`<option value="${i}">${i+1}</option>`).join("");
   const cannotRegroup=layoutLocked||batchListingPhotos.length<2;
@@ -1251,7 +1251,7 @@ let listingAgentPhotos = [];
 let listingAgentDraftData = null;
 function renderListingAgentPhotos() {
   const box=$("listingPhotoPreview"), button=$("analyzeListingPhotosBtn"); if(!box||!button)return;
-  box.innerHTML=listingAgentPhotos.map((file,i)=>`<figure><img src="${URL.createObjectURL(file)}" alt="Item photo ${i+1}"><figcaption>Photo ${i+1}</figcaption></figure>`).join("");
+  box.innerHTML=listingAgentPhotos.map((file,i)=>`<figure><img src="${photoObjectUrl(file)}" alt="Item photo ${i+1}"><figcaption>Photo ${i+1}</figcaption></figure>`).join("");
   button.disabled=!listingAgentPhotos.length; const museButton=$("sendToMuseBtn"); if(museButton)museButton.disabled=!listingAgentPhotos.length;
   $("listingAgentStatus").textContent=listingAgentPhotos.length ? listingAgentPhotos.length+" photo"+(listingAgentPhotos.length===1?"":"s")+" ready" : "Ready for photos";
   $("listingAgentMessage").textContent=listingAgentPhotos.length ? "Photos are staged locally. They have not been uploaded or added to inventory." : "Nothing will be added to inventory until you review and approve the draft.";
