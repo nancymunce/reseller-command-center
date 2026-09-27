@@ -7,10 +7,12 @@ The dashboard database is the source of truth. Marketplaces are channels connect
 ## Marketplace strategy
 
 ### eBay
-Secure OAuth integration using:
-- Sell Fulfillment API for orders
-- Sell Finances API for fees, transactions and payouts
-- Inventory API for listings and quantities
+Seller-controlled workflow only:
+- Prepare canonical Master Drafts and listing photos
+- Generate seller-reviewed eBay CSV draft files
+- Record listing IDs/URLs and sale information supplied by the seller
+- Research sold comparables without account automation
+- Never log in, publish, revise, end, or otherwise act on the eBay account
 
 ### Etsy
 OAuth and Open API connection for listings, receipts and inventory.
