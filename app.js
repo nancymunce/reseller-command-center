@@ -1095,11 +1095,28 @@ async function analyzeListingPhotoFiles(files,facts={}){
 async function prepareMasterDraftFromPhotos(files,label="Batch item"){
   if(!files?.length)throw new Error(label+" has no photos.");
   const id=crypto.randomUUID();
-  const draft=await analyzeListingPhotoFiles(files,{notes:"Prepared from Batch Photo Intake. Review all AI-generated fields before approval."});
-  const paths=await uploadListingPhotos(id,files);
-  const item={id,title:String(draft.title||label).trim()||label,brand:String(draft.brand||"").trim(),category:String(draft.category||"").trim(),purchaseCost:0,costStatus:"unknown",purchaseDate:"",source:"",storage:"",status:"Unlisted",listPrice:Number(draft.suggested_price||0),listedMarketplaces:[],saleMarketplace:"",saleDate:"",salePrice:0,shippingCollected:0,fees:0,shippingCost:0,otherExpenses:0,notes:"",listingDescription:String(draft.description||"").trim(),itemCondition:String(draft.condition||"").trim(),researchNotes:String(draft.research_notes||"").trim(),draftStatus:"draft",ebayCategoryId:"",ebayConditionId:"",ebayItemSpecifics:normalizeItemSpecifics(draft.item_specifics),listingPhotoPaths:paths};
+  let draft;
+  try{
+    draft=await analyzeListingPhotoFiles(files,{notes:"Prepared from Batch Photo Intake. Review all AI-generated fields before approval."});
+  }catch(error){
+    const wrapped=new Error("AI analysis failed: "+(error?.message||"Unknown analysis error"));wrapped.stage="analysis";throw wrapped;
+  }
+  if(!draft||typeof draft!=="object"){
+    const error=new Error("AI analysis failed: no usable draft was returned");error.stage="analysis";throw error;
+  }
+  let paths=[];
+  try{
+    paths=await uploadListingPhotos(id,files);
+  }catch(error){
+    const wrapped=new Error("Photo upload failed: "+(error?.message||"Unknown upload error"));wrapped.stage="photos";throw wrapped;
+  }
+  const suggestedPrice=Number(draft.suggested_price||0);
+  const item={id,title:String(draft.title||label).trim()||label,brand:String(draft.brand||"").trim(),category:String(draft.category||"").trim(),purchaseCost:0,costStatus:"unknown",purchaseDate:"",source:"",storage:"",status:"Unlisted",listPrice:Number.isFinite(suggestedPrice)?suggestedPrice:0,listedMarketplaces:[],saleMarketplace:"",saleDate:"",salePrice:0,shippingCollected:0,fees:0,shippingCost:0,otherExpenses:0,notes:"",listingDescription:String(draft.description||"").trim(),itemCondition:String(draft.condition||"").trim(),researchNotes:String(draft.research_notes||"").trim(),draftStatus:"draft",ebayCategoryId:"",ebayConditionId:"",ebayItemSpecifics:normalizeItemSpecifics(draft.item_specifics),listingPhotoPaths:paths};
   try{return await saveCloudItem(item);}
-  catch(error){try{await removeListingPhotoFiles(paths);}catch(rollbackError){console.error("Could not roll back batch draft photos",rollbackError);}throw error;}
+  catch(error){
+    try{await removeListingPhotoFiles(paths);}catch(rollbackError){console.error("Could not roll back batch draft photos",rollbackError);}
+    const wrapped=new Error("Draft save failed: "+(error?.message||"Unknown database error"));wrapped.stage="database";throw wrapped;
+  }
 }
 function batchGroupKey(indexes){return indexes.join("-");}
 async function prepareOneBatchGroup(groupIndex){
