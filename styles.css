@@ -502,3 +502,7 @@ legend { font-weight: 800; padding: 0 6px; }
 .batch-status-preparing{background:var(--soft);color:var(--accent-dark)}
 .batch-status-failed{background:#f5e6df;color:#8b442a}
 .batch-group-actions button:disabled{opacity:.55;cursor:not-allowed}
+
+.batch-group-locked{opacity:.88}
+.batch-group-locked .batch-draggable{cursor:default}
+.batch-draggable.locked{outline:none}
