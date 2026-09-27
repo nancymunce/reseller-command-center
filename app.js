@@ -1094,10 +1094,12 @@ async function prepareAllBatchMasterDrafts(){
 function renderBatchIntake() {
   const tray=$("batchPhotoTray"), groups=$("batchGroups"), controls=$("batchGroupControls"), count=$("batchPhotoCount"), split=$("batchSplitAfter");
   if(!tray||!groups||!controls||!count||!split)return;
+  const layoutLocked=[...batchPreparationState.values()].some(x=>x?.status==="created");
   count.textContent=batchListingPhotos.length+" photo"+(batchListingPhotos.length===1?"":"s");
   tray.innerHTML=batchListingPhotos.map((file,i)=>`<figure><img src="${URL.createObjectURL(file)}" alt="Batch photo ${i+1}"><figcaption>${i+1}</figcaption></figure>`).join("");
   controls.hidden=batchListingPhotos.length<2;
   split.innerHTML=batchListingPhotos.slice(0,-1).map((_,i)=>`<option value="${i}">${i+1}</option>`).join("");
+  ["batchSplitAfter","batchAutoGroupBtn","batchSplitBtn","batchOneGroupBtn"].forEach(id=>{const el=$(id);if(el)el.disabled=layoutLocked;});
   let groupIndexes=currentBatchGroupIndexes();
   const assigned=new Set(groupIndexes.flat());
   const unassigned=batchListingPhotos.map((_,i)=>i).filter(i=>!assigned.has(i));
@@ -1155,7 +1157,7 @@ function renderBatchIntake() {
       $("batchHelp").textContent="Manual layout active. Drag any photo between item groups until it looks right. Nothing has been saved.";
     });
   });
-  $("batchAddGroupBtn")?.addEventListener("click",()=>{batchManualGroups=currentBatchGroupIndexes().map(g=>[...g]);batchManualGroups.push([]);renderBatchIntake();});
+  $("batchAddGroupBtn")?.addEventListener("click",()=>{if([...batchPreparationState.values()].some(x=>x?.status==="created")){toast("Batch layout is locked after a draft is prepared");return;}batchManualGroups=currentBatchGroupIndexes().map(g=>[...g]);batchManualGroups.push([]);renderBatchIntake();});
   document.querySelectorAll(".delete-batch-group").forEach(button=>button.addEventListener("click",()=>{
     if(button.disabled)return;
     const target=Number(button.dataset.group);
@@ -1421,7 +1423,7 @@ $("batchAutoGroupBtn")?.addEventListener("click", proposeBatchGroups);
 $("prepareBatchDraftsBtn")?.addEventListener("click",prepareAllBatchMasterDrafts);
 $("batchOneGroupBtn")?.addEventListener("click", () => { resetBatchGroups(); renderBatchIntake(); });
 $("batchClearBtn")?.addEventListener("click", () => {
-  batchListingPhotos = []; batchListingGroups = []; $("batchListingPhotos").value = ""; renderBatchIntake();
+  batchListingPhotos = []; batchListingGroups = []; batchManualGroups=null; batchSelectedPhotos.clear(); batchPreparationState.clear(); $("batchListingPhotos").value = ""; renderBatchIntake();
 });
 $("listingAgentPhotos")?.addEventListener("change", e => { listingAgentPhotos=[...e.target.files]; renderListingAgentPhotos(); });
 function buildMuseHandoff(){
