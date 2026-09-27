@@ -1113,12 +1113,13 @@ function renderBatchIntake() {
     return `<article class="batch-group-card" data-group="${gi}">
     <div class="batch-group-heading"><strong>${gi===groupIndexes.length-1 && unassigned.length ? "Unassigned Photos" : "Item "+(gi+1)}</strong><span>${indexes.length} photo${indexes.length===1?"":"s"}</span></div>
     <div class="batch-group-status batch-status-${status}">${statusText}${status==="failed"&&prep?.error?" · "+escapeHtml(prep.error):""}</div>
-    <div class="batch-group-thumbs batch-drop-target" data-group="${gi}">${indexes.map(idx=>`<figure class="batch-draggable ${batchSelectedPhotos.has(idx) ? "selected" : ""}" draggable="true" data-photo="${idx}"><img src="${URL.createObjectURL(batchListingPhotos[idx])}" alt="Item ${gi+1} photo"><figcaption>${idx+1}</figcaption></figure>`).join("")}</div>
-    <div class="batch-group-actions">${prepButton}<button class="secondary use-batch-group" type="button" data-group="${gi}">Open in Listing Agent</button><button class="danger ghost delete-batch-group" type="button" data-group="${gi}">Delete Group</button></div>
+    <div class="batch-group-thumbs batch-drop-target ${status==="created"?"batch-group-locked":""}" data-group="${gi}" data-locked="${status==="created"?"true":"false"}">${indexes.map(idx=>`<figure class="batch-draggable ${batchSelectedPhotos.has(idx) ? "selected" : ""} ${status==="created"?"locked":""}" draggable="${status==="created"?"false":"true"}" data-photo="${idx}"><img src="${URL.createObjectURL(batchListingPhotos[idx])}" alt="Item ${gi+1} photo"><figcaption>${idx+1}</figcaption></figure>`).join("")}</div>
+    <div class="batch-group-actions">${prepButton}<button class="secondary use-batch-group" type="button" data-group="${gi}">Open in Listing Agent</button><button class="danger ghost delete-batch-group" type="button" data-group="${gi}" ${status==="created"?"disabled":""}>Delete Group</button></div>
   </article>`;
   }).join("")+`<button id="batchAddGroupBtn" class="secondary" type="button">+ Add Empty Item Group</button>`;
 
   document.querySelectorAll(".batch-draggable").forEach(el=>{
+    if(el.classList.contains("locked"))return;
     el.addEventListener("click",e=>{
       const photo=Number(el.dataset.photo);
       if(e.shiftKey || e.metaKey || e.ctrlKey){
@@ -1138,6 +1139,7 @@ function renderBatchIntake() {
     el.addEventListener("dragend",()=>el.classList.remove("dragging"));
   });
   document.querySelectorAll(".batch-drop-target").forEach(zone=>{
+    if(zone.dataset.locked==="true")return;
     zone.addEventListener("dragover",e=>{e.preventDefault();zone.classList.add("drag-over");});
     zone.addEventListener("dragleave",()=>zone.classList.remove("drag-over"));
     zone.addEventListener("drop",e=>{
@@ -1155,6 +1157,7 @@ function renderBatchIntake() {
   });
   $("batchAddGroupBtn")?.addEventListener("click",()=>{batchManualGroups=currentBatchGroupIndexes().map(g=>[...g]);batchManualGroups.push([]);renderBatchIntake();});
   document.querySelectorAll(".delete-batch-group").forEach(button=>button.addEventListener("click",()=>{
+    if(button.disabled)return;
     const target=Number(button.dataset.group);
     const existing=currentBatchGroupIndexes().map(g=>[...g]);
     const removed=existing.splice(target,1)[0]||[];
