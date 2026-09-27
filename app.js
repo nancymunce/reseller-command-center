@@ -970,6 +970,19 @@ function showView(viewId) {
 }
 
 
+const stagedPhotoObjectUrls=new Map();
+function photoObjectUrl(file){
+  if(stagedPhotoObjectUrls.has(file))return stagedPhotoObjectUrls.get(file);
+  const url=photoObjectUrl(file);stagedPhotoObjectUrls.set(file,url);return url;
+}
+function releaseUnusedPhotoObjectUrls(keepFiles=[]){
+  const keep=new Set(keepFiles);
+  for(const [file,url] of stagedPhotoObjectUrls.entries()){
+    if(keep.has(file))continue;
+    URL.revokeObjectURL(url);stagedPhotoObjectUrls.delete(file);
+  }
+}
+
 let batchListingPhotos = [];
 let batchListingGroups = [];
 let batchManualGroups = null;
@@ -1150,7 +1163,7 @@ function renderBatchIntake() {
     return `<article class="batch-group-card" data-group="${gi}">
     <div class="batch-group-heading"><strong>${gi===groupIndexes.length-1 && unassigned.length ? "Unassigned Photos" : "Item "+(gi+1)}</strong><span>${indexes.length} photo${indexes.length===1?"":"s"}</span></div>
     <div class="batch-group-status batch-status-${status}">${statusText}${status==="failed"&&prep?.error?" · "+escapeHtml(prep.error):""}</div>
-    <div class="batch-group-thumbs batch-drop-target ${status==="created"?"batch-group-locked":""}" data-group="${gi}" data-locked="${status==="created"?"true":"false"}">${indexes.map(idx=>`<figure class="batch-draggable ${batchSelectedPhotos.has(idx) ? "selected" : ""} ${status==="created"?"locked":""}" draggable="${status==="created"?"false":"true"}" data-photo="${idx}"><img src="${URL.createObjectURL(batchListingPhotos[idx])}" alt="Item ${gi+1} photo"><figcaption>${idx+1}</figcaption></figure>`).join("")}</div>
+    <div class="batch-group-thumbs batch-drop-target ${status==="created"?"batch-group-locked":""}" data-group="${gi}" data-locked="${status==="created"?"true":"false"}">${indexes.map(idx=>`<figure class="batch-draggable ${batchSelectedPhotos.has(idx) ? "selected" : ""} ${status==="created"?"locked":""}" draggable="${status==="created"?"false":"true"}" data-photo="${idx}"><img src="${photoObjectUrl(batchListingPhotos[idx])}" alt="Item ${gi+1} photo"><figcaption>${idx+1}</figcaption></figure>`).join("")}</div>
     <div class="batch-group-actions">${prepButton}<button class="secondary use-batch-group" type="button" data-group="${gi}">Open in Listing Agent</button><button class="danger ghost delete-batch-group" type="button" data-group="${gi}" ${status==="created"?"disabled":""}>Delete Group</button></div>
   </article>`;
   }).join("")+`<button id="batchAddGroupBtn" class="secondary" type="button">+ Add Empty Item Group</button>`;
@@ -1449,7 +1462,9 @@ function stableSortBatchPhotos(files) {
 }
 
 $("batchListingPhotos")?.addEventListener("change", e => {
-  batchListingPhotos = stableSortBatchPhotos([...e.target.files]);
+  const next=stableSortBatchPhotos([...e.target.files]);
+  releaseUnusedPhotoObjectUrls([...next,...listingAgentPhotos]);
+  batchListingPhotos=next;
   resetBatchGroups();
   renderBatchIntake();
 });
@@ -1458,9 +1473,9 @@ $("batchAutoGroupBtn")?.addEventListener("click", proposeBatchGroups);
 $("prepareBatchDraftsBtn")?.addEventListener("click",prepareAllBatchMasterDrafts);
 $("batchOneGroupBtn")?.addEventListener("click", () => { resetBatchGroups(); renderBatchIntake(); });
 $("batchClearBtn")?.addEventListener("click", () => {
-  batchListingPhotos = []; batchListingGroups = []; batchManualGroups=null; batchSelectedPhotos.clear(); batchPreparationState.clear(); $("batchListingPhotos").value = ""; renderBatchIntake();
+  batchListingPhotos = []; batchListingGroups = []; batchManualGroups=null; batchSelectedPhotos.clear(); batchPreparationState.clear(); releaseUnusedPhotoObjectUrls(listingAgentPhotos); $("batchListingPhotos").value = ""; renderBatchIntake();
 });
-$("listingAgentPhotos")?.addEventListener("change", e => { listingAgentPhotos=[...e.target.files]; renderListingAgentPhotos(); });
+$("listingAgentPhotos")?.addEventListener("change", e => { const next=[...e.target.files];releaseUnusedPhotoObjectUrls([...batchListingPhotos,...next]);listingAgentPhotos=next; renderListingAgentPhotos(); });
 function buildMuseHandoff(){
   const costStatus=$("agentCostStatus").value, cost=$("agentCost").value;
   const costLine=costStatus==="free"?"Free ($0)":costStatus==="known"&&cost?("$"+Number(cost).toFixed(2)):"Unknown";
