@@ -1062,9 +1062,20 @@ async function fileToAnalysisDataUrl(file){
     return fileToDataUrl(file);
   }
 }
+function analysisPhotoSample(files,max=12){
+  if(files.length<=max)return files;
+  const chosen=[],seen=new Set();
+  for(let n=0;n<max;n++){
+    const idx=Math.round(n*(files.length-1)/(max-1));
+    if(!seen.has(idx)){seen.add(idx);chosen.push(files[idx]);}
+  }
+  return chosen;
+}
 async function analyzeListingPhotoFiles(files,facts={}){
-  const images=await Promise.all(files.map(fileToAnalysisDataUrl));
-  const {data,error}=await supabaseClient.functions.invoke("listing-agent-analyze",{body:{images,facts}});
+  const sample=analysisPhotoSample(files);
+  const images=await Promise.all(sample.map(fileToAnalysisDataUrl));
+  const analysisFacts={...facts,photo_count:files.length,analysis_photo_count:sample.length};
+  const {data,error}=await supabaseClient.functions.invoke("listing-agent-analyze",{body:{images,facts:analysisFacts}});
   if(error)throw error;if(data?.error)throw new Error(data.error);
   return data?.draft||{};
 }
