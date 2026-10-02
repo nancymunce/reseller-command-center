@@ -42,6 +42,7 @@
     <button class="tab" data-view="complete">Complete Inventory</button>
     <button class="tab" data-view="listing-agent">📸 Listing Agent</button>
     <button class="tab" data-view="master-drafts">Master Drafts</button>
+    <button class="tab" data-view="cross-post">Cross-Post</button>
     <button class="tab" data-view="sourcing">Sourcing Scout</button>
     <button class="tab" data-view="marketplaces">Marketplaces</button>
     <button class="tab" data-view="settings">Settings</button>
@@ -245,6 +246,23 @@
       </dialog>
     </section>
 
+    <section id="cross-post" class="view">
+      <div class="section-toolbar">
+        <div><p class="eyebrow">Publish pipeline</p><h2>Cross-Post</h2><p class="section-intro">Turn one approved master listing into ready-to-publish packages for each marketplace. Tap any field to copy it, paste it into the marketplace yourself — nothing here logs in to eBay, Poshmark, Mercari, or Facebook. Etsy publishing creates a <strong>draft</strong> listing only; you review and activate it inside Etsy.</p></div>
+      </div>
+      <article class="panel">
+        <div class="panel-heading">
+          <div><p class="eyebrow">Step 1</p><h3>Pick an approved item</h3></div>
+        </div>
+        <div class="xp-picker-row">
+          <input id="xpSearch" type="search" placeholder="Search approved listings…" aria-label="Search approved listings">
+          <select id="xpItemSelect" aria-label="Choose item to cross-post"></select>
+        </div>
+        <p id="xpItemSummary" class="item-meta"></p>
+      </article>
+      <div id="xpPackages" class="xp-grid"></div>
+    </section>
+
     <section id="listing-agent" class="view">
       <div class="section-toolbar"><div><p class="eyebrow">Photo-first workflow</p><h2>Listing Agent</h2><p class="section-intro">Start with the item, not a form. Add several clear photos and the agent will use them to build a draft for your approval.</p></div></div>
 
@@ -260,12 +278,30 @@
           <label>Start a new item after photo <select id="batchSplitAfter"></select></label>
           <button id="batchAutoGroupBtn" class="primary" type="button">Suggest Item Groups</button>
           <button id="prepareBatchDraftsBtn" class="primary" type="button">Prepare All Master Drafts</button>
+          <button id="batchMuseJumpBtn" class="secondary" type="button">Batch via Muse (Free)</button>
           <button id="batchSplitBtn" class="secondary" type="button">Split Here</button>
           <button id="batchOneGroupBtn" class="secondary" type="button">Make One Item</button>
           <button id="batchClearBtn" class="danger ghost" type="button">Clear Batch</button>
         </div>
         <div id="batchGroups" class="batch-groups"></div>
         <p id="batchHelp" class="muted">Nothing is uploaded or saved yet. This first version keeps the grouping step reversible and local to your browser.</p>
+      </article>
+
+      <article id="batchMusePanel" class="panel wide">
+        <div class="panel-heading">
+          <div><p class="eyebrow">Free batch drafts</p><h3>Batch Muse Handoff</h3></div>
+          <span id="batchMuseCount" class="badge"></span>
+        </div>
+        <p class="section-intro">Zero-cost path: one request covers every unprepared item group. Copy it, send it to Muse with the groups' photos attached <strong>in item order</strong>, paste Muse's reply back, and each group becomes a Master Draft. Do not regroup photos between copying the request and pasting the results.</p>
+        <div class="dialog-actions"><button id="buildBatchMuseRequestBtn" class="primary" type="button">1. Build Batch Request</button></div>
+        <div id="batchMuseNotes"></div>
+        <label>Batch request — copy this to Muse<textarea id="batchMuseRequestText" rows="10" readonly placeholder="Build the batch request first…"></textarea></label>
+        <div class="dialog-actions"><button id="copyBatchMuseRequestBtn" class="secondary" type="button">Copy Request</button></div>
+        <hr>
+        <h3>2. Bring Muse's batch results back</h3>
+        <label>Paste Muse's entire reply<textarea id="batchMuseResultText" rows="8" placeholder="Paste the whole message from Muse here…"></textarea></label>
+        <div class="dialog-actions"><button id="parseBatchMuseResultsBtn" class="secondary" type="button">Preview Results</button><button id="createBatchDraftsBtn" class="primary" type="button" disabled>Create Master Drafts</button></div>
+        <div id="batchMuseResultPreview" class="muse-result-preview" hidden></div>
       </article>
 
       <div class="listing-agent-grid">
@@ -673,6 +709,8 @@
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="supabase-config.js?v=20260918-cloud1"></script>
   <script src="app.js?v=20260926-musefree1"></script>
+  <script src="cross-post.js?v=20261001-xp1"></script>
   <script src="muse-handoff.js?v=20260926-draft3"></script>
+  <script src="batch-muse-handoff.js?v=20260926-batchmuse1"></script>
 </body>
 </html>

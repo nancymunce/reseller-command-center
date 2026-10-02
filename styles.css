@@ -506,3 +506,43 @@ legend { font-weight: 800; padding: 0 6px; }
 .batch-group-locked{opacity:.88}
 .batch-group-locked .batch-draggable{cursor:default}
 .batch-draggable.locked{outline:none}
+
+/* Batch Muse handoff */
+#batchMuseNotes{display:grid;gap:10px;margin:12px 0}
+.batch-muse-note-row{display:flex;gap:12px;align-items:center;border:1px solid var(--line);border-radius:12px;padding:10px 12px;background:#fff}
+.batch-muse-note-thumbs{display:flex;gap:6px;flex-shrink:0}
+.batch-muse-note-thumbs img{width:44px;height:44px;object-fit:cover;border-radius:8px;border:1px solid var(--line)}
+.batch-muse-note-row label{flex:1;display:grid;gap:6px;font-size:.9rem}
+.batch-muse-note-row input{width:100%;padding:8px 10px;border:1px solid var(--line);border-radius:9px;font-size:.9rem}
+
+/* Cross-Post tab */
+.xp-picker-row{display:flex;gap:10px;flex-wrap:wrap}
+.xp-picker-row input{flex:2;min-width:220px}
+.xp-picker-row select{flex:3;min-width:260px}
+.xp-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(330px,1fr));gap:18px;margin-top:18px}
+.xp-card h3{margin-bottom:0}
+.xp-note{margin-bottom:12px;line-height:1.5}
+.xp-fields{margin-bottom:12px}
+.xp-row{display:flex;gap:10px;align-items:flex-start;padding:10px 12px;border:1px solid var(--line);border-radius:10px;margin-bottom:8px;cursor:pointer;background:#fff;transition:border-color .15s,background .15s}
+.xp-row:hover{border-color:var(--accent)}
+.xp-row.copied{border-color:var(--accent);background:var(--soft)}
+.xp-label{font-size:.7rem;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);font-weight:800;min-width:96px;padding-top:3px;flex-shrink:0}
+.xp-value{flex:1;font-size:.92rem;word-break:break-word;white-space:pre-wrap;line-height:1.45}
+.xp-copy{color:var(--accent);font-weight:800;flex-shrink:0}
+.xp-flag{background:#fff7e6;border:1px solid #f0d48a;color:#7a5b00;border-radius:10px;padding:8px 12px;font-size:.85rem;margin-bottom:10px;line-height:1.45}
+.xp-price{display:grid;gap:6px;margin:12px 0;font-weight:700;font-size:.9rem}
+.xp-price input{max-width:180px}
+.xp-math{color:var(--muted);font-size:.8rem;font-weight:400;margin:4px 0 0}
+.xp-mode-manual{background:#eceff1;color:#58636d}
+.xp-mode-api{background:#e8f4ea;color:#2a6738}
+.xp-published{background:#e8f4ea;color:#2a6738}
+.xp-etsy-connect{display:grid;gap:10px;border:1px dashed var(--line);border-radius:12px;padding:14px;margin-bottom:14px;background:#fbfaf7}
+.xp-etsy-connect label{display:grid;gap:6px;font-size:.88rem;font-weight:700}
+.xp-etsy-connect label small{font-weight:400;color:var(--muted)}
+.xp-etsy-status{display:flex;align-items:center;gap:8px;margin-bottom:12px;flex-wrap:wrap}
+.xp-etsy-opts{display:grid;gap:10px;margin:12px 0}
+.xp-etsy-opts label{display:grid;gap:6px;font-size:.88rem;font-weight:700}
+.xp-etsy-opts label small{font-weight:400;color:var(--muted)}
+.xp-card .dialog-actions{margin-top:12px}
+.xp-card button[disabled]{opacity:.55;cursor:not-allowed}
+@media(max-width:620px){.xp-picker-row{flex-direction:column}.xp-label{min-width:0}}
