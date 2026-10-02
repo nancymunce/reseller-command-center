@@ -795,7 +795,9 @@ function masterDraftSummary(i){
 }
 function ebayDraftIssues(i){
  const issues=[];
- if(!String(i.title||"").trim()) issues.push("title");
+ const title=String(i.title||"").trim();
+ if(!title) issues.push("title");
+ else if(title.length>80) issues.push("title over 80 chars (eBay limit)");
  if(!(Number(i.listPrice)>0)) issues.push("price");
  if(!/^\d+$/.test(String(i.ebayCategoryId||"").trim())) issues.push("eBay category");
  const condition=String(i.ebayConditionId||ebayConditionId(i.itemCondition)||"").trim();
@@ -967,6 +969,7 @@ function showView(viewId) {
   document.querySelectorAll(".view").forEach(v => v.classList.toggle("active", v.id === viewId));
   document.querySelectorAll(".tab").forEach(t => t.classList.toggle("active", t.dataset.view === viewId));
   if (history.replaceState) history.replaceState(null, "", `#${viewId}`);
+  if (viewId === "cross-post" && typeof window.renderCrossPostPicker === "function") window.renderCrossPostPicker();
 }
 
 
