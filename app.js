@@ -844,8 +844,15 @@ function renderMasterDrafts() {
     const ai=ebayDraftIssues(a).length,bi=ebayDraftIssues(b).length;
     return bi-ai||String(a.title||"").localeCompare(String(b.title||""));
   });
-  table.innerHTML=drafts.length?drafts.map(i=>`<tr><td><input class="ebay-draft-select" type="checkbox" data-id="${i.id}" ${i.draftStatus==="approved"&&i.status!=="Not for sale"?"":"disabled"} aria-label="Select ${escapeHtml(i.title)}"></td><td><div class="item-title">${escapeHtml(i.title)}</div><div class="item-meta">${escapeHtml(i.brand||"")}</div></td><td>${escapeHtml(i.itemCondition||"—")}</td><td>${currency(i.listPrice||0)}</td><td><span class="badge">${escapeHtml(i.draftStatus)}</span></td><td>${ebayReadiness(i)}<div class="item-meta">${draftPhotoCount(i)} photos · ${draftSpecificsCompleteness(i)} specifics</div></td><td><button class="secondary review-master-draft" data-id="${i.id}" type="button">Review</button></td></tr>`).join(""):'<tr><td colspan="7" class="empty">No master drafts yet. Send an item through the Listing Agent to create one.</td></tr>';
+  table.innerHTML=drafts.length?drafts.map(i=>`<tr><td><input class="ebay-draft-select" type="checkbox" data-id="${i.id}" ${i.draftStatus==="approved"&&i.status!=="Not for sale"?"":"disabled"} aria-label="Select ${escapeHtml(i.title)}"></td><td><div class="item-title">${escapeHtml(i.title)}</div><div class="item-meta">${escapeHtml(i.brand||"")}</div></td><td>${escapeHtml(i.itemCondition||"—")}</td><td>${currency(i.listPrice||0)}</td><td><span class="badge">${escapeHtml(i.draftStatus)}</span></td><td>${ebayReadiness(i)}<div class="item-meta">${draftPhotoCount(i)} photos · ${draftSpecificsCompleteness(i)} specifics</div></td><td><button class="secondary review-master-draft" data-id="${i.id}" type="button">Review</button> <button class="secondary remove-master-draft" data-id="${i.id}" type="button">Remove</button></td></tr>`).join(""):'<tr><td colspan="7" class="empty">No master drafts yet. Send an item through the Listing Agent to create one.</td></tr>';
   document.querySelectorAll(".review-master-draft").forEach(b=>b.addEventListener("click",()=>openMasterDraft(b.dataset.id)));
+  document.querySelectorAll(".remove-master-draft").forEach(b=>b.addEventListener("click",()=>removeMasterDraft(b.dataset.id)));
+}
+async function removeMasterDraft(id){
+  const i=items.find(x=>x.id===id);if(!i)return;
+  if(!confirm('Remove "'+i.title+'" from the draft queue? It stays in your inventory.'))return;
+  try{const saved=await saveCloudItem({...i,draftStatus:"inventory"});items[items.findIndex(x=>x.id===id)]=saved;renderAll();toast("Removed from drafts — still in inventory.");}
+  catch(e){alert("Could not remove draft: "+(e&&e.message?e.message:"unknown error"));}
 }
 function csvCell(value){const s=String(value??"");return /[",\n\r]/.test(s)?'"'+s.replace(/"/g,'""')+'"':s;}
 function ebayConditionId(text){const t=String(text||"").toLowerCase();if(/brand new|new with|\bnew\b/.test(t))return "1000";if(/open box|new other/.test(t))return "1500";if(/seller refurbished/.test(t))return "2500";if(/used|pre-owned|preowned|vintage/.test(t))return "3000";return "";}
