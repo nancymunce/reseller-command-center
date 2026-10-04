@@ -185,6 +185,7 @@ const marketplaces = [
   "Etsy",
   "Facebook Marketplace",
   "Mercari",
+  "Vinted",
   "Garage Sale",
   "Other"
 ];
@@ -445,6 +446,7 @@ function renderMarketplaceCards() {
     "Depop": ["Email/import", "Use sale emails, exports or supported partner integrations."],
     "Facebook Marketplace": ["Quick update", "Best handled with a fast sold button for local transactions."],
     "Mercari": ["Email/import", "Use sale notifications, exports or manual confirmation."],
+    "Vinted": ["No seller fees", "Buyers pay the protection fee; list clothes, shoes and accessories."],
     "Garage Sale": ["In person", "Cash sales at your garage sale — no fees, no shipping."],
     "Other": ["Manual/import", "Record sales from antique malls, booths, flea markets or private buyers."]
   };
