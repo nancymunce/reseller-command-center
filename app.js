@@ -248,7 +248,7 @@ function daysBetween(start, end = new Date().toISOString().slice(0, 10)) {
 }
 
 function statusBadge(status) {
-  const cls = status.toLowerCase();
+  const cls = String(status || "").toLowerCase().replace(/\s+/g, "-");
   return `<span class="badge ${cls}">${escapeHtml(status)}</span>`;
 }
 
@@ -840,7 +840,7 @@ function renderMasterDrafts() {
     const ai=ebayDraftIssues(a).length,bi=ebayDraftIssues(b).length;
     return bi-ai||String(a.title||"").localeCompare(String(b.title||""));
   });
-  table.innerHTML=drafts.length?drafts.map(i=>`<tr><td><input class="ebay-draft-select" type="checkbox" data-id="${i.id}" ${i.draftStatus==="approved"?"":"disabled"} aria-label="Select ${escapeHtml(i.title)}"></td><td><div class="item-title">${escapeHtml(i.title)}</div><div class="item-meta">${escapeHtml(i.brand||"")}</div></td><td>${escapeHtml(i.itemCondition||"—")}</td><td>${currency(i.listPrice||0)}</td><td><span class="badge">${escapeHtml(i.draftStatus)}</span></td><td>${ebayReadiness(i)}<div class="item-meta">${draftPhotoCount(i)} photos · ${draftSpecificsCompleteness(i)} specifics</div></td><td><button class="secondary review-master-draft" data-id="${i.id}" type="button">Review</button></td></tr>`).join(""):'<tr><td colspan="7" class="empty">No master drafts yet. Send an item through the Listing Agent to create one.</td></tr>';
+  table.innerHTML=drafts.length?drafts.map(i=>`<tr><td><input class="ebay-draft-select" type="checkbox" data-id="${i.id}" ${i.draftStatus==="approved"&&i.status!=="Not for sale"?"":"disabled"} aria-label="Select ${escapeHtml(i.title)}"></td><td><div class="item-title">${escapeHtml(i.title)}</div><div class="item-meta">${escapeHtml(i.brand||"")}</div></td><td>${escapeHtml(i.itemCondition||"—")}</td><td>${currency(i.listPrice||0)}</td><td><span class="badge">${escapeHtml(i.draftStatus)}</span></td><td>${ebayReadiness(i)}<div class="item-meta">${draftPhotoCount(i)} photos · ${draftSpecificsCompleteness(i)} specifics</div></td><td><button class="secondary review-master-draft" data-id="${i.id}" type="button">Review</button></td></tr>`).join(""):'<tr><td colspan="7" class="empty">No master drafts yet. Send an item through the Listing Agent to create one.</td></tr>';
   document.querySelectorAll(".review-master-draft").forEach(b=>b.addEventListener("click",()=>openMasterDraft(b.dataset.id)));
 }
 function csvCell(value){const s=String(value??"");return /[",\n\r]/.test(s)?'"'+s.replace(/"/g,'""')+'"':s;}
@@ -852,7 +852,7 @@ async function markExportedDrafts(ids){
 }
 async function exportSelectedEbayDrafts(){
  const ids=[...document.querySelectorAll(".ebay-draft-select:checked")].map(x=>x.dataset.id);
- const selected=items.filter(i=>ids.includes(i.id)&&i.draftStatus==="approved");
+ const selected=items.filter(i=>ids.includes(i.id)&&i.draftStatus==="approved"&&i.status!=="Not for sale");
  if(!selected.length){toast("Select at least one approved draft");return;}
  const blocked=selected.map(i=>({i,issues:ebayDraftIssues(i)})).filter(x=>x.issues.length);
  if(blocked.length){alert("These approved drafts still need attention before eBay export:\n\n"+blocked.map(x=>"• "+x.i.title+": "+x.issues.join(", ")).join("\n"));return;}

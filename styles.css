@@ -185,6 +185,7 @@ tr:last-child td { border-bottom: 0; }
 
 .badge.sold { background: #e8f4ea; color: #2a6738; }
 .badge.unlisted { background: #f3eee7; color: #755f42; }
+.badge.not-for-sale { background: #e9e4f5; color: #5b4a8a; }
 .badge.scout-meets-target { background: #dff2e5; color: #1f6b3a; }
 .badge.scout-needs-research { background: #fff1cc; color: #795b00; }
 .badge.scout-below-target { background: #f5e6df; color: #8b442a; }
