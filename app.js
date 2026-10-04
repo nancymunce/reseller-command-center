@@ -1674,6 +1674,38 @@ $("clearDataBtn").addEventListener("click", () => {
   alert("Bulk cloud deletion is disabled for safety. Delete individual inventory items instead.");
 });
 
+$("togglePassword")?.addEventListener("click", () => {
+  const input = $("loginPassword");
+  const toggle = $("togglePassword");
+  if (!input || !toggle) return;
+  const show = input.type === "password";
+  input.type = show ? "text" : "password";
+  toggle.textContent = show ? "Hide" : "Show";
+  toggle.setAttribute("aria-label", show ? "Hide password" : "Show password");
+});
+
+$("magicLinkBtn")?.addEventListener("click", async () => {
+  const email = $("loginEmail").value.trim();
+  const message = $("loginMessage");
+  const button = $("magicLinkBtn");
+  if (!email) {
+    if (message) { message.textContent = "Enter your email first, then request a link."; message.classList.add("error"); }
+    return;
+  }
+  if (message) { message.textContent = "Sending sign-in link..."; message.classList.remove("error"); }
+  if (button) button.disabled = true;
+  try {
+    const { error } = await supabaseClient.auth.signInWithOtp({ email, options: { shouldCreateUser: false } });
+    if (error) throw error;
+    if (message) message.textContent = "Check your email for the sign-in link. It expires in an hour.";
+  } catch (error) {
+    console.error("Magic link failed:", error);
+    if (message) { message.textContent = error?.message || "Could not send the sign-in link. Try again."; message.classList.add("error"); }
+  } finally {
+    if (button) button.disabled = false;
+  }
+});
+
 $("loginForm")?.addEventListener("submit", async (event) => {
   event.preventDefault();
   const email = $("loginEmail").value.trim();

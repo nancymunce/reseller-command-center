@@ -13,8 +13,14 @@
       <h1>Reseller Command Center</h1>
       <p class="auth-copy">Sign in to access your private reseller workspace.</p>
       <label>Email<input id="loginEmail" type="email" autocomplete="email" required value="aflourishinglifestyle@gmail.com" /></label>
-      <label>Password<input id="loginPassword" type="password" autocomplete="current-password" required /></label>
+      <label>Password
+        <span class="password-wrap">
+          <input id="loginPassword" type="password" autocomplete="current-password" required />
+          <button type="button" id="togglePassword" class="password-toggle" aria-label="Show password">Show</button>
+        </span>
+      </label>
       <button class="primary" type="submit">Sign In</button>
+      <button class="link-button" type="button" id="magicLinkBtn">Email me a sign-in link instead</button>
       <p id="loginMessage" class="auth-message" aria-live="polite"></p>
     </form>
   </section>

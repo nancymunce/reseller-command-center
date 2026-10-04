@@ -424,6 +424,13 @@ legend { font-weight: 800; padding: 0 6px; }
 .auth-card label { display: grid; gap: 7px; font-weight: 700; }
 .auth-copy, .auth-message { color: var(--muted); margin-bottom: 0; }
 .auth-message.error { color: var(--danger); }
+.password-wrap { position: relative; display: block; }
+.password-wrap input { width: 100%; padding-right: 64px; }
+.password-toggle { position: absolute; right: 8px; top: 50%; transform: translateY(-50%); background: none; border: none; color: var(--accent); font-weight: 700; font-size: 0.85rem; cursor: pointer; padding: 4px 6px; }
+.password-toggle:hover { text-decoration: underline; }
+.link-button { background: none; border: none; color: var(--accent); font-weight: 600; cursor: pointer; padding: 4px; font-size: 0.95rem; }
+.link-button:hover { text-decoration: underline; }
+.link-button:disabled { opacity: 0.6; cursor: default; }
 
 
 /* Cloud connection status */
