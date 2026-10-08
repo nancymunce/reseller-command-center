@@ -125,6 +125,8 @@ function itemToDatabase(item) {
     storage_location: item.storage || null,
     status: item.status || "Unlisted",
     list_price: Number(item.listPrice || 0),
+    quantity: Math.max(1, Math.round(Number(item.quantity || 1))),
+    quantity_available: Math.max(0, Math.round(Number(item.quantityAvailable ?? item.quantity ?? 1))),
     listed_marketplaces: item.listedMarketplaces || [],
     sale_marketplace: item.saleMarketplace || null,
     sale_date: item.saleDate || null,
@@ -151,6 +153,8 @@ function databaseToItem(row) {
     purchaseCost: Number(row.purchase_cost || 0), costStatus: row.cost_status || "known", purchaseDate: row.purchase_date || "",
     source: row.source || "", storage: row.storage_location || "", status: row.status || "Unlisted",
     listPrice: Number(row.list_price || 0), listedMarketplaces: row.listed_marketplaces || [],
+    quantity: Math.max(1, Number(row.quantity || 1)),
+    quantityAvailable: Math.max(0, Number(row.quantity_available ?? row.quantity ?? 1)),
     saleMarketplace: row.sale_marketplace || "", saleDate: row.sale_date || "",
     salePrice: Number(row.sale_price || 0), shippingCollected: Number(row.shipping_collected || 0),
     fees: Number(row.fees || 0), shippingCost: Number(row.shipping_cost || 0),
@@ -349,6 +353,15 @@ function renderRecentItems() {
   `).join("") : `<tr><td colspan="6" class="empty">No items yet.</td></tr>`;
 }
 
+function quantityLabel(item) {
+  const qty = Math.max(1, Number(item.quantity || 1));
+  const avail = Math.max(0, Number(item.quantityAvailable ?? qty));
+  if (qty <= 1) return "";
+  if (avail === 0) return `Qty ${qty} · all sold`;
+  if (avail < qty) return `${avail} of ${qty} left`;
+  return `Qty ${qty}`;
+}
+
 function renderInventory() {
   const search = $("inventorySearch").value.toLowerCase().trim();
   const status = $("statusFilter").value;
@@ -363,7 +376,7 @@ function renderInventory() {
 
   $("inventoryTable").innerHTML = filtered.length ? filtered.map(item => `
     <tr>
-      <td><div class="item-title">${escapeHtml(item.title)}</div><div class="item-meta">${escapeHtml(item.brand || "")}</div></td>
+      <td><div class="item-title">${escapeHtml(item.title)}</div><div class="item-meta">${escapeHtml(item.brand || "")}${quantityLabel(item) ? " · " + quantityLabel(item) : ""}</div></td>
       <td>${escapeHtml(item.category || "—")}</td>
       <td>${escapeHtml(item.source || "—")}</td>
       <td>${escapeHtml(item.storage || "—")}</td>
@@ -1137,7 +1150,7 @@ async function prepareMasterDraftFromPhotos(files,label="Batch item"){
     const wrapped=new Error("Photo upload failed: "+(error?.message||"Unknown upload error"));wrapped.stage="photos";throw wrapped;
   }
   const suggestedPrice=Number(draft.suggested_price||0);
-  const item={id,title:String(draft.title||label).trim()||label,brand:String(draft.brand||"").trim(),category:String(draft.category||"").trim(),purchaseCost:0,costStatus:"unknown",purchaseDate:"",source:"",storage:"",status:"Unlisted",listPrice:Number.isFinite(suggestedPrice)?suggestedPrice:0,listedMarketplaces:[],saleMarketplace:"",saleDate:"",salePrice:0,shippingCollected:0,fees:0,shippingCost:0,otherExpenses:0,notes:"",listingDescription:String(draft.description||"").trim(),itemCondition:String(draft.condition||"").trim(),researchNotes:String(draft.research_notes||"").trim(),draftStatus:"draft",ebayCategoryId:"",ebayConditionId:"",ebayItemSpecifics:normalizeItemSpecifics(draft.item_specifics),listingPhotoPaths:paths};
+  const item={id,title:String(draft.title||label).trim()||label,brand:String(draft.brand||"").trim(),category:String(draft.category||"").trim(),purchaseCost:0,costStatus:"unknown",purchaseDate:"",source:"",storage:"",status:"Unlisted",listPrice:Number.isFinite(suggestedPrice)?suggestedPrice:0,quantity:1,quantityAvailable:1,listedMarketplaces:[],saleMarketplace:"",saleDate:"",salePrice:0,shippingCollected:0,fees:0,shippingCost:0,otherExpenses:0,notes:"",listingDescription:String(draft.description||"").trim(),itemCondition:String(draft.condition||"").trim(),researchNotes:String(draft.research_notes||"").trim(),draftStatus:"draft",ebayCategoryId:"",ebayConditionId:"",ebayItemSpecifics:normalizeItemSpecifics(draft.item_specifics),listingPhotoPaths:paths};
   try{return await saveCloudItem(item);}
   catch(error){
     try{await removeListingPhotoFiles(paths);}catch(rollbackError){console.error("Could not roll back batch draft photos",rollbackError);}
@@ -1323,6 +1336,8 @@ function openItemDialog(id = "") {
   $("storage").value = item?.storage || "";
   $("status").value = item?.status || "Unlisted";
   $("listPrice").value = item?.listPrice ?? "";
+  $("quantity").value = item?.quantity ?? 1;
+  $("quantitySold").value = "";
   $("saleMarketplace").value = item?.saleMarketplace || "";
   $("saleDate").value = item?.saleDate || "";
   $("salePrice").value = item?.salePrice || "";
@@ -1342,9 +1357,24 @@ function renderMarketplaceChecks(selected = []) {
   `).join("");
 }
 
-function readFormItem() {
+function readFormItem(existing = null) {
   const selected = [...$("marketplaceChecks").querySelectorAll("input:checked")].map(i => i.value);
-  const status = $("saleMarketplace").value || $("saleDate").value || $("salePrice").value ? "Sold" : $("status").value;
+  const isSale = $("saleMarketplace").value || $("saleDate").value || $("salePrice").value;
+  const quantity = Math.max(1, Math.round(Number($("quantity").value || 1)));
+  const prevQuantity = Math.max(1, Number(existing?.quantity || 1));
+  const prevAvailable = Math.max(0, Number(existing?.quantityAvailable ?? prevQuantity));
+  let quantityAvailable = prevAvailable;
+  if (isSale) {
+    const qtySoldInput = Math.max(0, Math.round(Number($("quantitySold").value || 0)));
+    const qtySold = qtySoldInput > 0 ? Math.min(qtySoldInput, prevAvailable) : prevAvailable;
+    quantityAvailable = Math.max(0, prevAvailable - qtySold);
+  } else if (quantity > prevQuantity) {
+    quantityAvailable = prevAvailable + (quantity - prevQuantity);
+  }
+  quantityAvailable = Math.min(quantityAvailable, quantity);
+  const status = isSale
+    ? (quantityAvailable === 0 ? "Sold" : "Listed")
+    : $("status").value;
   return {
     id: $("itemId").value || crypto.randomUUID(),
     title: $("title").value.trim(),
@@ -1356,6 +1386,8 @@ function readFormItem() {
     storage: $("storage").value.trim(),
     status,
     listPrice: Number($("listPrice").value || 0),
+    quantity,
+    quantityAvailable,
     listedMarketplaces: selected,
     saleMarketplace: $("saleMarketplace").value,
     saleDate: $("saleDate").value,
@@ -1388,7 +1420,7 @@ function exportJson() {
 function exportCsv() {
   const headers = [
     "id","title","brand","category","purchaseCost","purchaseDate","source","storage","status",
-    "listPrice","listedMarketplaces","saleMarketplace","saleDate","salePrice","shippingCollected",
+    "listPrice","quantity","quantityAvailable","listedMarketplaces","saleMarketplace","saleDate","salePrice","shippingCollected",
     "fees","shippingCost","otherExpenses","notes"
   ];
   const rows = items.map(item => headers.map(h => {
@@ -1562,7 +1594,8 @@ $("cancelBtn").addEventListener("click", () => $("itemDialog").close());
 
 $("itemForm").addEventListener("submit", async (event) => {
   event.preventDefault();
-  const record = readFormItem();
+  const existing = items.find(i => i.id === $("itemId").value) || null;
+  const record = readFormItem(existing);
   if (!record.title || !record.purchaseDate) return;
   const index = items.findIndex(i => i.id === record.id);
   try {
