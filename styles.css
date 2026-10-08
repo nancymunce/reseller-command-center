@@ -551,6 +551,8 @@ legend { font-weight: 800; padding: 0 6px; }
 .xp-etsy-opts{display:grid;gap:10px;margin:12px 0}
 .xp-etsy-opts label{display:grid;gap:6px;font-size:.88rem;font-weight:700}
 .xp-etsy-opts label small{font-weight:400;color:var(--muted)}
+.xp-ship-row{display:flex;gap:8px}
+.xp-ship-row select{flex:1;min-width:0}
 .xp-card .dialog-actions{margin-top:12px}
 .xp-card button[disabled]{opacity:.55;cursor:not-allowed}
 @media(max-width:620px){.xp-picker-row{flex-direction:column}.xp-label{min-width:0}}

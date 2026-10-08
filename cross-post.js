@@ -164,6 +164,32 @@
     return base64Url(digest);
   }
 
+  async function etsyLoadShippingProfiles() {
+    var btn = $("etsyLoadProfilesBtn"), sel = $("etsyShippingProfileSelect");
+    if (!btn || !sel) return;
+    btn.disabled = true; btn.textContent = "Loading…";
+    try {
+      var shopId = await etsyResolveShop();
+      var data = await etsyApi("/shops/" + encodeURIComponent(shopId) + "/shipping-profiles");
+      var profiles = data.results || [];
+      if (!profiles.length) {
+        sel.innerHTML = '<option value="">No profiles found</option>';
+        toast("No shipping profiles in your shop yet. Create one in Etsy: Shop Manager → Settings → Shipping settings, then load again.");
+        return;
+      }
+      sel.innerHTML = '<option value="">Choose a profile…</option>' + profiles.map(function (p) {
+        return '<option value="' + p.shipping_profile_id + '">' + escapeHtml(p.profile_name || ("Profile " + p.shipping_profile_id)) + '</option>';
+      }).join("");
+      var saved = etsyStore().shipping_profile_id;
+      if (saved) sel.value = saved;
+      toast(profiles.length + " shipping profile" + (profiles.length === 1 ? "" : "s") + " loaded — pick one.");
+    } catch (e) {
+      toast("Could not load profiles: " + e.message);
+    } finally {
+      btn.disabled = false; btn.textContent = "Load my profiles";
+    }
+  }
+
   async function etsyConnect() {
     var st = etsyStore();
     if (!st.keystring) { toast("Enter your Etsy API keystring first — it stays in this browser only."); return; }
@@ -466,8 +492,10 @@
       "</select></label>" +
       '<label>Etsy category (taxonomy)<select id="etsyTaxonomySelect"><option value="">Loading suggestions…</option></select>' +
       '<input id="etsyTaxonomyId" inputmode="numeric" placeholder="Taxonomy ID (required)"></label>' +
-      '<label>Shipping profile ID <small>(Etsy → Shop Manager → Settings → Shipping settings; saved in this browser)</small>' +
-      '<input id="etsyShippingProfile" inputmode="numeric" placeholder="Required for physical listings" value="' + escapeHtml(st.shipping_profile_id || "") + '"></label>' +
+      '<label>Shipping profile <small>(from your Etsy shop; saved in this browser)</small>' +
+      '<span class="xp-ship-row"><select id="etsyShippingProfileSelect"><option value="">—</option></select>' +
+      '<button type="button" class="secondary" id="etsyLoadProfilesBtn">Load my profiles</button></span>' +
+      '<input id="etsyShippingProfile" inputmode="numeric" placeholder="Profile ID fills in automatically" value="' + escapeHtml(st.shipping_profile_id || "") + '"></label>' +
       "</div>" +
       '<p class="item-meta">Add your photos inside Etsy after the draft is created.</p>' +
       '<div class="dialog-actions">' +
@@ -697,6 +725,17 @@
     });
     var publishBtn = $("etsyPublishBtn");
     if (publishBtn) publishBtn.addEventListener("click", function () { etsyPublishDraft(item); });
+    var loadProfilesBtn = $("etsyLoadProfilesBtn");
+    if (loadProfilesBtn) loadProfilesBtn.addEventListener("click", etsyLoadShippingProfiles);
+    var profileSel = $("etsyShippingProfileSelect");
+    if (profileSel) profileSel.addEventListener("change", function () {
+      var input = $("etsyShippingProfile");
+      if (profileSel.value && input) {
+        input.value = profileSel.value;
+        saveEtsyStore({ shipping_profile_id: profileSel.value });
+        toast("Shipping profile saved.");
+      }
+    });
   }
 
   /* ------------------------------------------------------------------ */
