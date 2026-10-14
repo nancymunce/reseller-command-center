@@ -754,7 +754,7 @@ async function signedListingPhotoUrl(path){const {data,error}=await supabaseClie
 async function removeListingPhoto(path){return removeListingPhotoFiles([path]);}
 async function renderMasterDraftPhotos(item){
  const box=$("masterDraftPhotos");if(!box)return;box.innerHTML="";
- const paths=item.listingPhotoPaths||[];const count=$("masterDraftPhotoCount");if(count)count.textContent=paths.length+" photo"+(paths.length===1?"":"s");if(!paths.length){box.innerHTML='<div class="photo-empty-state"><strong>No photos saved yet.</strong><span>Add one or more listing photos before approval.</span></div>';validateCurrentMasterDraft();return;}
+ const paths=item.listingPhotoPaths||[];const count=$("masterDraftPhotoCount");if(count)count.textContent=paths.length+" photo"+(paths.length===1?"":"s");if(!paths.length){box.innerHTML='<div class="photo-empty-state"><strong>No photos saved yet.</strong><span>Photos can be added in Seller Hub after export, or here before export.</span></div>';validateCurrentMasterDraft();return;}
  for(const [idx,path] of paths.entries()){try{const url=await signedListingPhotoUrl(path),fig=document.createElement("figure");fig.className="master-draft-photo";fig.innerHTML='<div class="photo-frame"><img src="'+url+'" alt="Listing photo '+(idx+1)+'">'+(idx===0?'<span class="primary-photo-badge">Primary</span>':'')+'</div><figcaption>Photo '+(idx+1)+'</figcaption><div class="photo-actions"><button type="button" class="text-button move-photo-left" '+(idx===0?"disabled":"")+' aria-label="Move photo left">←</button><button type="button" class="text-button move-photo-right" '+(idx===paths.length-1?"disabled":"")+' aria-label="Move photo right">→</button><button type="button" class="text-button remove-photo">Remove</button></div>';
  const move=async(to)=>{const next=[...paths],[p]=next.splice(idx,1);next.splice(to,0,p);const saved=await saveCloudItem({...item,listingPhotoPaths:next});items[items.findIndex(x=>x.id===item.id)]=saved;renderMasterDraftPhotos(saved);};
  fig.querySelector(".move-photo-left")?.addEventListener("click",()=>move(idx-1));fig.querySelector(".move-photo-right")?.addEventListener("click",()=>move(idx+1));fig.querySelector(".remove-photo").addEventListener("click",async()=>{
@@ -820,7 +820,6 @@ function ebayDraftIssues(i){
  const condition=String(i.ebayConditionId||ebayConditionId(i.itemCondition)||"").trim();
  if(!/^\d+$/.test(condition)) issues.push("condition");
  if(!String(i.listingDescription||"").trim()) issues.push("description");
- if(!(i.listingPhotoPaths||[]).length) issues.push("photo");
  return issues;
 }
 function draftWorkState(i){
